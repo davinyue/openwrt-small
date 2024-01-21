@@ -8,6 +8,7 @@ local has_fw3 = api.is_finded("fw3")
 local has_fw4 = api.is_finded("fw4")
 
 m = Map(appname)
+api.set_apply_on_parse(m)
 
 -- [[ Delay Settings ]]--
 s = m:section(TypedSection, "global_delay", translate("Delay Settings"))
@@ -128,35 +129,34 @@ o:depends("ipv6_tproxy", true)
 o.default = 0
 
 if has_xray then
-	s = m:section(TypedSection, "global_xray", "Xray " .. translate("Settings"))
-	s.anonymous = true
-	s.addremove = false
+	s_xray = m:section(TypedSection, "global_xray", "Xray " .. translate("Settings"))
+	s_xray.anonymous = true
+	s_xray.addremove = false
 
-	o = s:option(Flag, "sniffing", translate("Sniffing"), translate("When using the shunt, must be enabled, otherwise the shunt will invalid."))
+	o = s_xray:option(Flag, "sniffing", translate("Sniffing"), translate("When using the shunt, must be enabled, otherwise the shunt will invalid."))
 	o.default = 1
 	o.rmempty = false
 
-	if has_xray then
-		o = s:option(Flag, "route_only", translate("Sniffing Route Only"))
-		o.default = 0
-		o:depends("sniffing", true)
+	o = s_xray:option(Flag, "route_only", translate("Sniffing Route Only"))
+	o.default = 0
+	o:depends("sniffing", true)
 
-		local domains_excluded = string.format("/usr/share/%s/domains_excluded", appname)
-		o = s:option(TextValue, "no_sniffing_hosts", translate("No Sniffing Lists"), translate("Hosts added into No Sniffing Lists will not resolve again on server."))
-		o.rows = 15
-		o.wrap = "off"
-		o.cfgvalue = function(self, section) return fs.readfile(domains_excluded) or "" end
-		o.write = function(self, section, value) fs.writefile(domains_excluded, value:gsub("\r\n", "\n")) end
-		o.remove = function(self, section, value)
-			if s.fields["route_only"]:formvalue(section) == "0" then
-				fs.writefile(domains_excluded, "")
-			end
+	local domains_excluded = string.format("/usr/share/%s/domains_excluded", appname)
+	o = s_xray:option(TextValue, "no_sniffing_hosts", translate("No Sniffing Lists"), translate("Hosts added into No Sniffing Lists will not resolve again on server."))
+	o.rows = 15
+	o.wrap = "off"
+	o.cfgvalue = function(self, section) return fs.readfile(domains_excluded) or "" end
+	o.write = function(self, section, value) fs.writefile(domains_excluded, value:gsub("\r\n", "\n")) end
+	o.remove = function(self, section)
+		local route_only_value = s_xray.fields["route_only"] and s_xray.fields["route_only"]:formvalue(section) or nil
+		if not route_only_value or route_only_value == "0" then
+			fs.writefile(domains_excluded, "")
 		end
-		o:depends({sniffing = true, route_only = false})
-
-		o = s:option(Value, "buffer_size", translate("Buffer Size"), translate("Buffer size for every connection (kB)"))
-		o.datatype = "uinteger"
 	end
+	o:depends({sniffing = true, route_only = false})
+
+	o = s_xray:option(Value, "buffer_size", translate("Buffer Size"), translate("Buffer size for every connection (kB)"))
+	o.datatype = "uinteger"
 end
 
 if has_singbox then
@@ -165,11 +165,11 @@ if has_singbox then
 	s.addremove = false
 
 	o = s:option(Flag, "sniff_override_destination", translate("Override the connection destination address"), translate("Override the connection destination address with the sniffed domain."))
-	o.default = 1
+	o.default = 0
 	o.rmempty = false
 
 	o = s:option(Value, "geoip_path", translate("Custom geoip Path"))
-	o.default = "/tmp/singbox/geoip.db"
+	o.default = "/usr/share/singbox/geoip.db"
 	o.rmempty = false
 
 	o = s:option(Value, "geoip_url", translate("Custom geoip URL"))
@@ -178,7 +178,7 @@ if has_singbox then
 	o.rmempty = false
 
 	o = s:option(Value, "geosite_path", translate("Custom geosite Path"))
-	o.default = "/tmp/singbox/geosite.db"
+	o.default = "/usr/share/singbox/geosite.db"
 	o.rmempty = false
 
 	o = s:option(Value, "geosite_url", translate("Custom geosite URL"))
@@ -186,6 +186,19 @@ if has_singbox then
 	o:value("https://github.com/SagerNet/sing-geosite/releases/latest/download/geosite.db")
 	o.rmempty = false
 
+	o = s:option(Button, "_remove_resource", translate("Remove resource files"))
+	o.description = translate("Sing-Box will automatically download resource files when starting, you can use this feature achieve upgrade resource files.")
+	o.inputstyle = "remove"
+	function o.write(self, section, value)
+		local geoip_path = s.fields["geoip_path"] and s.fields["geoip_path"]:formvalue(section) or nil
+		if geoip_path then
+			os.remove(geoip_path)
+		end
+		local geosite_path = s.fields["geosite_path"] and s.fields["geosite_path"]:formvalue(section) or nil
+		if geosite_path then
+			os.remove(geosite_path)
+		end
+	end
 end
 
 return m

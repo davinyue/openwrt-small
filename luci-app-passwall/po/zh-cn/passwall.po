@@ -22,6 +22,9 @@ msgstr "点我检测"
 msgid "Kernel Unsupported"
 msgstr "内核不支持"
 
+msgid "Settings"
+msgstr "设置"
+
 msgid "Main Settings"
 msgstr "节点选择"
 
@@ -112,6 +115,9 @@ msgstr "当前节点：%s"
 msgid "Filter Mode"
 msgstr "过滤模式"
 
+msgid "A/AAAA type"
+msgstr "A/AAAA 类型"
+
 msgid "TCP node must be '%s' type to use FakeDNS."
 msgstr "TCP 节点必须是 '%s' 类型才能使用 FakeDNS。"
 
@@ -163,11 +169,23 @@ msgstr "远程DNS可以避免更多的DNS泄露，但会导致规则列表外的
 msgid "Direct DNS Internet experience may be better, but DNS will be leaked!"
 msgstr "直连DNS上网体验可能会更佳，但是会泄露DNS！"
 
+msgid "ChinaDNS-NG Domain Default Tag"
+msgstr "ChinaDNS-NG 域名默认标签"
+
+msgid "Smart DNS"
+msgstr "智能 DNS"
+
+msgid "Forward to both remote and direct DNS, if the direct DNS resolution result is a mainland China ip, then use the direct result, otherwise use the remote result"
+msgstr "同时转发给远程和直连DNS，如果直连DNS解析结果是大陆ip，则使用直连结果，否则使用远程结果"
+
 msgid "Filter Proxy Host IPv6"
 msgstr "过滤代理域名 IPv6"
 
 msgid "Experimental feature."
 msgstr "实验性功能。"
+
+msgid "Use FakeDNS work in the shunt domain that proxy."
+msgstr "需要代理的分流规则域名使用 FakeDNS。"
 
 msgid "Clear IPSET"
 msgstr "清空 IPSET"
@@ -481,6 +499,9 @@ msgstr "传输层插件"
 msgid "Shadowsocks secondary encryption"
 msgstr "Shadowsocks 二次加密"
 
+msgid "Obfs Type"
+msgstr "混淆类型"
+
 msgid "Obfs Password"
 msgstr "混淆密码"
 
@@ -489,6 +510,15 @@ msgstr "认证类型"
 
 msgid "Auth Password"
 msgstr "认证密码"
+
+msgid "Commands the client to use the BBR flow control algorithm"
+msgstr "命令客户端使用 BBR 流量控制算法"
+
+msgid "PinSHA256"
+msgstr "PinSHA256"
+
+msgid "Certificate fingerprint"
+msgstr "证书指纹"
 
 msgid "Max upload Mbps"
 msgstr "最大上行(Mbps)"
@@ -502,8 +532,14 @@ msgstr "QUIC 流接收窗口"
 msgid "QUIC connection receive window"
 msgstr "QUIC 连接接收窗口"
 
+msgid "QUIC concurrent bidirectional streams"
+msgstr "QUIC 并发双向流的最大数量"
+
 msgid "Disable MTU detection"
 msgstr "禁用 MTU 检测"
+
+msgid "ignoreClientBandwidth"
+msgstr "忽略客户端带宽设置"
 
 msgid "Lazy Start"
 msgstr "延迟启动"
@@ -982,6 +1018,12 @@ msgstr "配置路由etc/hosts文件，如果你不知道自己在做什么，请
 msgid "These had been joined ip addresses will be block. Please input the ip address or ip address segment, every line can input only one ip address."
 msgstr "加入的IP段将屏蔽。可输入IP地址或地址段，每个地址段一行。"
 
+msgid "Inbound Tag"
+msgstr "入站标签"
+
+msgid "Transparent proxy"
+msgstr "透明代理"
+
 msgid "Not valid domain name, please re-enter!"
 msgstr "不是有效域名，请重新输入！"
 
@@ -1138,11 +1180,8 @@ msgstr "允许不安全连接"
 msgid "Whether unsafe connections are allowed. When checked, Certificate validation will be skipped."
 msgstr "是否允许不安全连接。当勾选时，将跳过证书验证。"
 
-msgid "SS AEAD Node Use Type"
-msgstr "SS AEAD节点使用类型"
-
-msgid "Trojan Node Use Type"
-msgstr "Trojan节点使用类型"
+msgid "%s Node Use Type"
+msgstr "%s 节点使用类型"
 
 msgid "Set the TUIC proxy server ip address"
 msgstr "指定远程TUIC服务器IP"
@@ -1363,8 +1402,8 @@ msgstr "无"
 msgid "You did not fill in the %s path. Please save and apply then update manually."
 msgstr "您没有填写 %s 路径。请保存应用后再手动更新。"
 
-msgid "Not installed unzip, Can't unzip!"
-msgstr "未安装unzip，无法解压。"
+msgid "Not installed %s, Can't unzip!"
+msgstr "未安装 %s，无法解压！"
 
 msgid "Can't determine ARCH, or ARCH not supported."
 msgstr "无法确认ARCH架构，或是不支持。"
@@ -1407,6 +1446,9 @@ msgstr "XUDP 最大并发连接数"
 
 msgid "Mux idle timeout"
 msgstr "最大闲置时间"
+
+msgid "Padding"
+msgstr "填充"
 
 msgid "Enable early data"
 msgstr "启用前置数据"
@@ -1458,3 +1500,51 @@ msgstr "端口跳跃时间 "
 
 msgid "Additional ports for hysteria hop"
 msgstr "端口跳跃额外端口"
+
+msgid "Custom geoip Path"
+msgstr "自定义geoip文件路径"
+
+msgid "Custom geoip URL"
+msgstr "自定义geoip文件更新链接"
+
+msgid "Custom geosite Path"
+msgstr "自定义geosite文件路径"
+
+msgid "Custom geosite URL"
+msgstr "自定义geosite文件更新链接"
+
+msgid "Remove resource files"
+msgstr "删除资源文件"
+
+msgid "Sing-Box will automatically download resource files when starting, you can use this feature achieve upgrade resource files."
+msgstr "Sing-Box 会在启动时自动下载资源文件，您可以使用此功能实现升级资源文件。"
+
+msgid "Override the connection destination address"
+msgstr "覆盖连接目标地址"
+
+msgid "Handshake Server"
+msgstr "握手服务器"
+
+msgid "Handshake Server Port"
+msgstr "握手服务器端口"
+
+msgid "Override the connection destination address with the sniffed domain."
+msgstr "用探测出的域名覆盖连接目标地址。"
+
+msgid "Protocol parameter. Will waste traffic randomly if enabled."
+msgstr "协议参数。 如果启用会随机浪费流量。"
+
+msgid "Protocol parameter. Enable length block encryption."
+msgstr "协议参数。启用长度块加密。"
+
+msgid "ECH Config"
+msgstr "ECH 密钥"
+
+msgid "ECH Key"
+msgstr "ECH 配置"
+
+msgid "PQ signature schemes"
+msgstr "后量子对等证书签名方案"
+
+msgid "Disable adaptive sizing of TLS records"
+msgstr "禁用 TLS 记录的自适应大小调整"

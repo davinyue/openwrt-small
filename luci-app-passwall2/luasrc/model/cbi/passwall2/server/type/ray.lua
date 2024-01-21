@@ -14,26 +14,6 @@ local function option_name(name)
 	return option_prefix .. name
 end
 
-local function rm_prefix_cfgvalue(self, section)
-	if self.option:find(option_prefix) == 1 then
-		return m:get(section, self.option:sub(1 + #option_prefix))
-	end
-end
-local function rm_prefix_write(self, section, value)
-	if s.fields["type"]:formvalue(arg[1]) == type_name then
-		if self.option:find(option_prefix) == 1 then
-			m:set(section, self.option:sub(1 + #option_prefix), value)
-		end
-	end
-end
-local function rm_prefix_remove(self, section, value)
-	if s.fields["type"]:formvalue(arg[1]) == type_name then
-		if self.option:find(option_prefix) == 1 then
-			m:del(section, self.option:sub(1 + #option_prefix))
-		end
-	end
-end
-
 local x_ss_method_list = {
 	"aes-128-gcm", "aes-256-gcm", "chacha20-poly1305", "xchacha20-poly1305", "2022-blake3-aes-128-gcm", "2022-blake3-aes-256-gcm", "2022-blake3-chacha20-poly1305"
 }
@@ -61,8 +41,8 @@ o.datatype = "port"
 o = s:option(Flag, option_name("auth"), translate("Auth"))
 o.validate = function(self, value, t)
 	if value and value == "1" then
-		local user_v = s.fields[option_name("username")]:formvalue(t) or ""
-		local pass_v = s.fields[option_name("password")]:formvalue(t) or ""
+		local user_v = s.fields[option_name("username")] and s.fields[option_name("username")]:formvalue(t) or ""
+		local pass_v = s.fields[option_name("password")] and s.fields[option_name("password")]:formvalue(t) or ""
 		if user_v == "" or pass_v == "" then
 			return nil, translate("Username and Password must be used together!")
 		end
@@ -98,17 +78,9 @@ o.default = "none"
 o:depends({ [option_name("protocol")] = "vless" })
 
 o = s:option(ListValue, option_name("x_ss_method"), translate("Encrypt Method"))
-o.not_rewrite = true
+o.rewrite_option = "method"
 for a, t in ipairs(x_ss_method_list) do o:value(t) end
 o:depends({ [option_name("protocol")] = "shadowsocks" })
-function o.cfgvalue(self, section)
-	return m:get(section, "method")
-end
-function o.write(self, section, value)
-	if s.fields["type"]:formvalue(arg[1]) == "Xray" then
-		m:set(section, "method", value)
-	end
-end
 
 o = s:option(Flag, option_name("iv_check"), translate("IV Check"))
 o:depends({ [option_name("protocol")] = "shadowsocks" })
@@ -143,9 +115,11 @@ o = s:option(Flag, option_name("tls"), translate("TLS"))
 o.default = 0
 o.validate = function(self, value, t)
 	if value then
+		local reality = s.fields[option_name("reality")] and s.fields[option_name("reality")]:formvalue(t) or nil
+		if reality and reality == "1" then return value end
 		if value == "1" then
-			local ca = s.fields[option_name("tls_certificateFile")]:formvalue(t) or ""
-			local key = s.fields[option_name("tls_keyFile")]:formvalue(t) or ""
+			local ca = s.fields[option_name("tls_certificateFile")] and s.fields[option_name("tls_certificateFile")]:formvalue(t) or ""
+			local key = s.fields[option_name("tls_keyFile")] and s.fields[option_name("tls_keyFile")]:formvalue(t) or ""
 			if ca == "" or key == "" then
 				return nil, translate("Public key and Private key path can not be empty!")
 			end
@@ -158,6 +132,24 @@ o:depends({ [option_name("protocol")] = "vless" })
 o:depends({ [option_name("protocol")] = "socks" })
 o:depends({ [option_name("protocol")] = "shadowsocks" })
 o:depends({ [option_name("protocol")] = "trojan" })
+
+-- [[ REALITY部分 ]] --
+o = s:option(Flag, option_name("reality"), translate("REALITY"))
+o.default = 0
+o:depends({ [option_name("tls")] = true })
+
+o = s:option(Value, option_name("reality_private_key"), translate("Private Key"))
+o:depends({ [option_name("reality")] = true })
+
+o = s:option(Value, option_name("reality_shortId"), translate("Short Id"))
+o:depends({ [option_name("reality")] = true })
+
+o = s:option(Value, option_name("reality_dest"), translate("Dest"))
+o.default = "google.com:443"
+o:depends({ [option_name("reality")] = true })
+
+o = s:option(Value, option_name("reality_serverNames"), translate("serverNames"))
+o:depends({ [option_name("reality")] = true })
 
 o = s:option(ListValue, option_name("alpn"), translate("alpn"))
 o.default = "h2,http/1.1"
@@ -175,7 +167,7 @@ o:depends({ [option_name("tls")] = true })
 
 o = s:option(FileUpload, option_name("tls_certificateFile"), translate("Public key absolute path"), translate("as:") .. "/etc/ssl/fullchain.pem")
 o.default = m:get(s.section, "tls_certificateFile") or "/etc/config/ssl/" .. arg[1] .. ".pem"
-o:depends({ [option_name("tls")] = true })
+o:depends({ [option_name("tls")] = true, [option_name("reality")] = false })
 o.validate = function(self, value, t)
 	if value and value ~= "" then
 		if not nixio.fs.access(value) then
@@ -189,7 +181,7 @@ end
 
 o = s:option(FileUpload, option_name("tls_keyFile"), translate("Private key absolute path"), translate("as:") .. "/etc/ssl/private.key")
 o.default = m:get(s.section, "tls_keyFile") or "/etc/config/ssl/" .. arg[1] .. ".key"
-o:depends({ [option_name("tls")] = true })
+o:depends({ [option_name("tls")] = true, [option_name("reality")] = false })
 o.validate = function(self, value, t)
 	if value and value ~= "" then
 		if not nixio.fs.access(value) then
@@ -391,21 +383,4 @@ o:value("warning")
 o:value("error")
 o:depends({ [option_name("log")] = true })
 
-for key, value in pairs(s.fields) do
-	if key:find(option_prefix) == 1 then
-		if not s.fields[key].not_rewrite then
-			s.fields[key].cfgvalue = rm_prefix_cfgvalue
-			s.fields[key].write = rm_prefix_write
-			s.fields[key].remove = rm_prefix_remove
-		end
-	end
-
-	local deps = s.fields[key].deps
-		if #deps > 0 then
-			for index, value in ipairs(deps) do
-				deps[index]["type"] = type_name
-			end
-		else
-			s.fields[key]:depends({ type = type_name })
-		end
-end
+api.luci_types(arg[1], m, s, type_name, option_prefix)

@@ -4,6 +4,7 @@ local datatypes = api.datatypes
 
 m = Map(appname, "Xray " .. translate("Shunt Rule"))
 m.redirect = api.url()
+api.set_apply_on_parse(m)
 
 s = m:section(NamedSection, arg[1], "shunt_rules", "")
 s.addremove = false
@@ -17,6 +18,10 @@ protocol = s:option(MultiValue, "protocol", translate("Protocol"))
 protocol:value("http")
 protocol:value("tls")
 protocol:value("bittorrent")
+
+o = s:option(MultiValue, "inbound", translate("Inbound Tag"))
+o:value("tproxy", translate("Transparent proxy"))
+o:value("socks", "Socks")
 
 network = s:option(ListValue, "network", translate("Network"))
 network:value("tcp,udp", "TCP UDP")

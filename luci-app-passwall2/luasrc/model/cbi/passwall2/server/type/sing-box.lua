@@ -18,26 +18,6 @@ local function option_name(name)
 	return option_prefix .. name
 end
 
-local function rm_prefix_cfgvalue(self, section)
-	if self.option:find(option_prefix) == 1 then
-		return m:get(section, self.option:sub(1 + #option_prefix))
-	end
-end
-local function rm_prefix_write(self, section, value)
-	if s.fields["type"]:formvalue(arg[1]) == type_name then
-		if self.option:find(option_prefix) == 1 then
-			m:set(section, self.option:sub(1 + #option_prefix), value)
-		end
-	end
-end
-local function rm_prefix_remove(self, section, value)
-	if s.fields["type"]:formvalue(arg[1]) == type_name then
-		if self.option:find(option_prefix) == 1 then
-			m:del(section, self.option:sub(1 + #option_prefix))
-		end
-	end
-end
-
 local ss_method_list = {
 	"none", "aes-128-gcm", "aes-192-gcm", "aes-256-gcm", "chacha20-ietf-poly1305", "xchacha20-ietf-poly1305",
 	"2022-blake3-aes-128-gcm", "2022-blake3-aes-256-gcm", "2022-blake3-chacha20-poly1305"
@@ -73,8 +53,8 @@ o.datatype = "port"
 o = s:option(Flag, option_name("auth"), translate("Auth"))
 o.validate = function(self, value, t)
 	if value and value == "1" then
-		local user_v = s.fields[option_name("username")]:formvalue(t) or ""
-		local pass_v = s.fields[option_name("password")]:formvalue(t) or ""
+		local user_v = s.fields[option_name("username")] and s.fields[option_name("username")]:formvalue(t) or ""
+		local pass_v = s.fields[option_name("password")] and s.fields[option_name("password")]:formvalue(t) or ""
 		if user_v == "" or pass_v == "" then
 			return nil, translate("Username and Password must be used together!")
 		end
@@ -131,6 +111,9 @@ if singbox_tags:find("with_quic") then
 
 	o = s:option(Flag, option_name("hysteria_disable_mtu_discovery"), translate("Disable MTU detection"))
 	o:depends({ [option_name("protocol")] = "hysteria" })
+
+	o = s:option(Value, option_name("hysteria_alpn"), translate("QUIC TLS ALPN"))
+	o:depends({ [option_name("protocol")] = "hysteria" })
 end
 
 if singbox_tags:find("with_quic") then
@@ -148,6 +131,9 @@ if singbox_tags:find("with_quic") then
 	o = s:option(Value, option_name("tuic_heartbeat"), translate("Heartbeat interval(second)"))
 	o.datatype = "uinteger"
 	o.default = "3"
+	o:depends({ [option_name("protocol")] = "tuic" })
+
+	o = s:option(Value, option_name("tuic_alpn"), translate("QUIC TLS ALPN"))
 	o:depends({ [option_name("protocol")] = "tuic" })
 end
 
@@ -193,17 +179,9 @@ o.default = "none"
 o:depends({ [option_name("protocol")] = "vless" })
 
 o = s:option(ListValue, option_name("ss_method"), translate("Encrypt Method"))
-o.not_rewrite = true
+o.rewrite_option = "method"
 for a, t in ipairs(ss_method_list) do o:value(t) end
 o:depends({ [option_name("protocol")] = "shadowsocks" })
-function o.cfgvalue(self, section)
-	return m:get(section, "method")
-end
-function o.write(self, section, value)
-	if s.fields["type"]:formvalue(arg[1]) == type_name then
-		m:set(section, "method", value)
-	end
-end
 
 o = s:option(DynamicList, option_name("uuid"), translate("ID") .. "/" .. translate("Password"))
 for i = 1, 3 do
@@ -224,9 +202,11 @@ o = s:option(Flag, option_name("tls"), translate("TLS"))
 o.default = 0
 o.validate = function(self, value, t)
 	if value then
+		local reality = s.fields[option_name("reality")] and s.fields[option_name("reality")]:formvalue(t) or nil
+		if reality and reality == "1" then return value end
 		if value == "1" then
-			local ca = s.fields[option_name("tls_certificateFile")]:formvalue(t) or ""
-			local key = s.fields[option_name("tls_keyFile")]:formvalue(t) or ""
+			local ca = s.fields[option_name("tls_certificateFile")] and s.fields[option_name("tls_certificateFile")]:formvalue(t) or ""
+			local key = s.fields[option_name("tls_keyFile")] and s.fields[option_name("tls_keyFile")]:formvalue(t) or ""
 			if ca == "" or key == "" then
 				return nil, translate("Public key and Private key path can not be empty!")
 			end
@@ -240,11 +220,41 @@ o:depends({ [option_name("protocol")] = "vmess" })
 o:depends({ [option_name("protocol")] = "vless" })
 o:depends({ [option_name("protocol")] = "trojan" })
 
+if singbox_tags:find("with_reality_server") then
+	-- [[ REALITY部分 ]] --
+	o = s:option(Flag, option_name("reality"), translate("REALITY"))
+	o.default = 0
+	o:depends({ [option_name("protocol")] = "vless", [option_name("tls")] = true })
+	o:depends({ [option_name("protocol")] = "vmess", [option_name("tls")] = true })
+	o:depends({ [option_name("protocol")] = "shadowsocks", [option_name("tls")] = true })
+	o:depends({ [option_name("protocol")] = "http", [option_name("tls")] = true })
+	o:depends({ [option_name("protocol")] = "trojan", [option_name("tls")] = true })
+	
+	o = s:option(Value, option_name("reality_private_key"), translate("Private Key"))
+	o:depends({ [option_name("reality")] = true })
+	
+	o = s:option(Value, option_name("reality_shortId"), translate("Short Id"))
+	o:depends({ [option_name("reality")] = true })
+
+	o = s:option(Value, option_name("reality_handshake_server"), translate("Handshake Server"))
+	o.default = "google.com"
+	o:depends({ [option_name("reality")] = true })
+
+	o = s:option(Value, option_name("reality_handshake_server_port"), translate("Handshake Server Port"))
+	o.datatype = "port"
+	o.default = "443"
+	o:depends({ [option_name("reality")] = true })
+end
+
 -- [[ TLS部分 ]] --
 
 o = s:option(FileUpload, option_name("tls_certificateFile"), translate("Public key absolute path"), translate("as:") .. "/etc/ssl/fullchain.pem")
 o.default = m:get(s.section, "tls_certificateFile") or "/etc/config/ssl/" .. arg[1] .. ".pem"
-o:depends({ [option_name("tls")] = true })
+o:depends({ [option_name("tls")] = true, [option_name("reality")] = false })
+o:depends({ [option_name("protocol")] = "naive" })
+o:depends({ [option_name("protocol")] = "hysteria" })
+o:depends({ [option_name("protocol")] = "tuic" })
+o:depends({ [option_name("protocol")] = "hysteria2" })
 o.validate = function(self, value, t)
 	if value and value ~= "" then
 		if not nixio.fs.access(value) then
@@ -258,7 +268,11 @@ end
 
 o = s:option(FileUpload, option_name("tls_keyFile"), translate("Private key absolute path"), translate("as:") .. "/etc/ssl/private.key")
 o.default = m:get(s.section, "tls_keyFile") or "/etc/config/ssl/" .. arg[1] .. ".key"
-o:depends({ [option_name("tls")] = true })
+o:depends({ [option_name("tls")] = true, [option_name("reality")] = false })
+o:depends({ [option_name("protocol")] = "naive" })
+o:depends({ [option_name("protocol")] = "hysteria" })
+o:depends({ [option_name("protocol")] = "tuic" })
+o:depends({ [option_name("protocol")] = "hysteria2" })
 o.validate = function(self, value, t)
 	if value and value ~= "" then
 		if not nixio.fs.access(value) then
@@ -270,10 +284,33 @@ o.validate = function(self, value, t)
 	return nil
 end
 
+if singbox_tags:find("with_ech") then
+	o = s:option(Flag, option_name("ech"), translate("ECH"))
+	o.default = "0"
+	o:depends({ [option_name("tls")] = true, [option_name("flow")] = "", [option_name("reality")] = false })
+	o:depends({ [option_name("protocol")] = "naive" })
+	o:depends({ [option_name("protocol")] = "hysteria" })
+	o:depends({ [option_name("protocol")] = "tuic" })
+	o:depends({ [option_name("protocol")] = "hysteria2" })
+
+	o = s:option(Value, option_name("ech_key"), translate("ECH Key"))
+	o.default = ""
+	o:depends({ [option_name("ech")] = true })
+
+	o = s:option(Flag, option_name("pq_signature_schemes_enabled"), translate("PQ signature schemes"))
+	o.default = "0"
+	o:depends({ [option_name("ech")] = true })
+
+	o = s:option(Flag, option_name("dynamic_record_sizing_disabled"), translate("Disable adaptive sizing of TLS records"))
+	o.default = "0"
+	o:depends({ [option_name("ech")] = true })
+end
+
 o = s:option(ListValue, option_name("transport"), translate("Transport"))
 o:value("tcp", "TCP")
 o:value("http", "HTTP")
 o:value("ws", "WebSocket")
+o:value("httpupgrade", "HTTPUpgrade")
 o:value("quic", "QUIC")
 o:value("grpc", "gRPC")
 o:depends({ [option_name("protocol")] = "shadowsocks" })
@@ -297,9 +334,38 @@ o:depends({ [option_name("transport")] = "ws" })
 o = s:option(Value, option_name("ws_path"), translate("WebSocket Path"))
 o:depends({ [option_name("transport")] = "ws" })
 
+-- [[ HTTPUpgrade部分 ]]--
+
+o = s:option(Value, option_name("httpupgrade_host"), translate("HTTPUpgrade Host"))
+o:depends({ [option_name("transport")] = "httpupgrade" })
+
+o = s:option(Value, option_name("httpupgrade_path"), translate("HTTPUpgrade Path"))
+o:depends({ [option_name("transport")] = "httpupgrade" })
+
 -- [[ gRPC部分 ]]--
 o = s:option(Value, option_name("grpc_serviceName"), "ServiceName")
 o:depends({ [option_name("transport")] = "grpc" })
+
+-- [[ Mux ]]--
+o = s:option(Flag, option_name("mux"), translate("Mux"))
+o.rmempty = false
+o:depends({ [option_name("protocol")] = "vmess" })
+o:depends({ [option_name("protocol")] = "vless", [option_name("flow")] = "" })
+o:depends({ [option_name("protocol")] = "shadowsocks" })
+o:depends({ [option_name("protocol")] = "trojan" })
+
+-- [[ TCP Brutal ]]--
+o = s:option(Flag, option_name("tcpbrutal"), translate("TCP Brutal"))
+o.default = 0
+o:depends({ [option_name("mux")] = true })
+
+o = s:option(Value, option_name("tcpbrutal_up_mbps"), translate("Max upload Mbps"))
+o.default = "10"
+o:depends({ [option_name("tcpbrutal")] = true })
+
+o = s:option(Value, option_name("tcpbrutal_down_mbps"), translate("Max download Mbps"))
+o.default = "50"
+o:depends({ [option_name("tcpbrutal")] = true })
 
 o = s:option(Flag, option_name("bind_local"), translate("Bind Local"), translate("When selected, it can only be accessed locally, It is recommended to turn on when using reverse proxies or be fallback."))
 o.default = "0"
@@ -359,21 +425,4 @@ o:value("warn")
 o:value("error")
 o:depends({ [option_name("log")] = true })
 
-for key, value in pairs(s.fields) do
-	if key:find(option_prefix) == 1 then
-		if not s.fields[key].not_rewrite then
-			s.fields[key].cfgvalue = rm_prefix_cfgvalue
-			s.fields[key].write = rm_prefix_write
-			s.fields[key].remove = rm_prefix_remove
-		end
-
-		local deps = s.fields[key].deps
-		if #deps > 0 then
-			for index, value in ipairs(deps) do
-				deps[index]["type"] = type_name
-			end
-		else
-			s.fields[key]:depends({ type = type_name })
-		end
-	end
-end
+api.luci_types(arg[1], m, s, type_name, option_prefix)

@@ -16,6 +16,7 @@ OPENWRT_ARCH = nil
 DISTRIB_ARCH = nil
 
 LOG_FILE = "/tmp/log/passwall2.log"
+CACHE_PATH = "/tmp/etc/passwall2_tmp"
 
 function log(...)
 	local result = os.date("%Y-%m-%d %H:%M:%S: ") .. table.concat({...}, " ")
@@ -103,6 +104,29 @@ end
 
 function trim(s)
 	return (s:gsub("^%s*(.-)%s*$", "%1"))
+end
+
+-- 分割字符串
+function split(full, sep)
+	if full then
+		full = full:gsub("%z", "") -- 这里不是很清楚 有时候结尾带个\0
+		local off, result = 1, {}
+		while true do
+			local nStart, nEnd = full:find(sep, off)
+			if not nEnd then
+				local res = string.sub(full, off, string.len(full))
+				if #res > 0 then -- 过滤掉 \0
+					table.insert(result, res)
+				end
+				break
+			else
+				table.insert(result, string.sub(full, off, nStart - 1))
+				off = nEnd + 1
+			end
+		end
+		return result
+	end
+	return {}
 end
 
 function is_exist(table, value)
@@ -384,7 +408,11 @@ end
 function finded_com(e)
 	local bin = get_app_path(e)
 	if not bin then return end
-	return luci.sys.exec('echo -n $(type -t -p "%s" | head -n1)' % { bin })
+	local s = luci.sys.exec('echo -n $(type -t -p "%s" | head -n1)' % { bin })
+	if s == "" then
+		s = nil
+	end
+	return s
 end
 
 function finded(e)
@@ -715,6 +743,9 @@ function to_check(arch, app_name)
 	end
 
 	local remote_version = json.tag_name
+	if com[app_name].remote_version_str_replace then
+		remote_version = remote_version:gsub(com[app_name].remote_version_str_replace, "")
+	end
 	local has_update = compare_versions(local_version:match("[^v]+"), "<", remote_version:match("[^v]+"))
 
 	if not has_update then
@@ -912,4 +943,102 @@ function to_move(app_name,file)
 	end
 
 	return {code = 0}
+end
+
+function cacheFileCompareToLogic(file, str)
+	local result = nil
+	if file and str then
+		local file_str = ""
+		if fs.access(file) then
+			file_str = sys.exec("cat " .. file)
+		end
+
+		if file_str ~= str then
+			sys.call("rm -f " .. file)
+			result = false
+		else
+			result = true
+		end
+
+		local f_out = io.open(file, "w")
+		if f_out then
+			f_out:write(str)
+			f_out:close()
+		end
+	end
+	return result
+end
+
+function is_js_luci()
+	return sys.call('[ -f "/www/luci-static/resources/uci.js" ]') == 0
+end
+
+function set_apply_on_parse(map)
+	if is_js_luci() == true then
+		map.apply_on_parse = false
+		map.on_after_apply = function(self)
+			if self.redirect then
+				os.execute("sleep 1")
+				luci.http.redirect(self.redirect)
+			end
+		end
+	end
+end
+
+function luci_types(id, m, s, type_name, option_prefix)
+	local rewrite_option_table = {}
+	for key, value in pairs(s.fields) do
+		if key:find(option_prefix) == 1 then
+			if not s.fields[key].not_rewrite then
+				if s.fields[key].rewrite_option then
+					if not rewrite_option_table[s.fields[key].rewrite_option] then
+						rewrite_option_table[s.fields[key].rewrite_option] = 1
+					else
+						rewrite_option_table[s.fields[key].rewrite_option] = rewrite_option_table[s.fields[key].rewrite_option] + 1
+					end
+				end
+
+				s.fields[key].cfgvalue = function(self, section)
+					if self.rewrite_option then
+						return m:get(section, self.rewrite_option)
+					else
+						if self.option:find(option_prefix) == 1 then
+							return m:get(section, self.option:sub(1 + #option_prefix))
+						end
+					end
+				end
+				s.fields[key].write = function(self, section, value)
+					if s.fields["type"]:formvalue(id) == type_name then
+						if self.rewrite_option then
+							m:set(section, self.rewrite_option, value)
+						else
+							if self.option:find(option_prefix) == 1 then
+								m:set(section, self.option:sub(1 + #option_prefix), value)
+							end
+						end
+					end
+				end
+				s.fields[key].remove = function(self, section)
+					if s.fields["type"]:formvalue(id) == type_name then
+						if self.rewrite_option and rewrite_option_table[self.rewrite_option] == 1 then
+							m:del(section, self.rewrite_option)
+						else
+							if self.option:find(option_prefix) == 1 then
+								m:del(section, self.option:sub(1 + #option_prefix))
+							end
+						end
+					end
+				end
+			end
+
+			local deps = s.fields[key].deps
+			if #deps > 0 then
+				for index, value in ipairs(deps) do
+					deps[index]["type"] = type_name
+				end
+			else
+				s.fields[key]:depends({ type = type_name })
+			end
+		end
+	end
 end

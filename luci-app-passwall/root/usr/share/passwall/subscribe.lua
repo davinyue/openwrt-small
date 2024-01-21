@@ -16,6 +16,7 @@ local datatypes = require "luci.cbi.datatypes"
 -- so caching them is worth the effort
 local tinsert = table.insert
 local ssub, slen, schar, sbyte, sformat, sgsub = string.sub, string.len, string.char, string.byte, string.format, string.gsub
+local split = api.split
 local jsonParse, jsonStringify = luci.jsonc.parse, luci.jsonc.stringify
 local base64Decode = api.base64Decode
 local uci = luci.model.uci.cursor()
@@ -24,12 +25,16 @@ uci:revert(appname)
 local has_ss = api.is_finded("ss-redir")
 local has_ss_rust = api.is_finded("sslocal")
 local has_trojan_plus = api.is_finded("trojan-plus")
-local has_v2ray = api.is_finded("v2ray")
-local has_xray = api.is_finded("xray")
-local has_trojan_go = api.is_finded("trojan-go")
+local has_singbox = api.finded_com("singbox")
+local has_xray = api.finded_com("xray")
+local has_trojan_go = api.finded_com("trojan-go")
+local has_hysteria2 = api.finded_com("hysteria")
 local allowInsecure_default = nil
 local ss_aead_type_default = uci:get(appname, "@global_subscribe[0]", "ss_aead_type") or "shadowsocks-libev"
 local trojan_type_default = uci:get(appname, "@global_subscribe[0]", "trojan_type") or "trojan-plus"
+local vmess_type_default = uci:get(appname, "@global_subscribe[0]", "vmess_type") or "xray"
+local vless_type_default = uci:get(appname, "@global_subscribe[0]", "vless_type") or "xray"
+local hysteria2_type_default = uci:get(appname, "@global_subscribe[0]", "hysteria2_type") or "hysteria2"
 -- 判断是否过滤节点关键字
 local filter_keyword_mode_default = uci:get(appname, "@global_subscribe[0]", "filter_keyword_mode") or "0"
 local filter_keyword_discard_list_default = uci:get(appname, "@global_subscribe[0]", "filter_discard_list") or {}
@@ -317,28 +322,6 @@ do
 	end
 end
 
--- 分割字符串
-local function split(full, sep)
-	if full then
-		full = full:gsub("%z", "") -- 这里不是很清楚 有时候结尾带个\0
-		local off, result = 1, {}
-		while true do
-			local nStart, nEnd = full:find(sep, off)
-			if not nEnd then
-				local res = ssub(full, off, slen(full))
-				if #res > 0 then -- 过滤掉 \0
-					tinsert(result, res)
-				end
-				break
-			else
-				tinsert(result, ssub(full, off, nStart - 1))
-				off = nEnd + 1
-			end
-		end
-		return result
-	end
-	return {}
-end
 -- urlencode
 -- local function get_urlencode(c) return sformat("%%%02X", sbyte(c)) end
 
@@ -395,11 +378,19 @@ local function processData(szType, content, add_mode, add_from)
 		result.remarks = base64Decode(params.remarks)
 	elseif szType == 'vmess' then
 		local info = jsonParse(content)
-		if has_v2ray then
-			result.type = 'V2ray'
-		elseif has_xray then
+		if has_singbox then
+			result.type = 'sing-box'
+		end
+		if has_xray then
 			result.type = 'Xray'
 		end
+		if vmess_type_default == "sing-box" and has_singbox then
+			result.type = 'sing-box'
+		end
+		if vmess_type_default == "xray" and has_xray then
+			result.type = "Xray"
+		end
+		result.alter_id = info.aid
 		result.address = info.add
 		result.port = info.port
 		result.protocol = 'vmess'
@@ -542,13 +533,9 @@ local function processData(szType, content, add_mode, add_from)
 					if method:lower() == "chacha20-poly1305" then
 						result.method = "chacha20-ietf-poly1305"
 					end
-				elseif ss_aead_type_default == "v2ray" and has_v2ray and not result.plugin then
-					result.type = 'V2ray'
+				elseif ss_aead_type_default == "sing-box" and has_singbox and not result.plugin then
+					result.type = 'sing-box'
 					result.protocol = 'shadowsocks'
-					result.transport = 'tcp'
-					if method:lower() == "chacha20-ietf-poly1305" then
-						result.method = "chacha20-poly1305"
-					end
 				elseif ss_aead_type_default == "xray" and has_xray and not result.plugin then
 					result.type = 'Xray'
 					result.protocol = 'shadowsocks'
@@ -559,13 +546,16 @@ local function processData(szType, content, add_mode, add_from)
 				end
 			end
 			local aead2022 = false
-			for k, v in ipairs({"2022-blake3-aes-128-gcm", "2022-blake3-aes-256-gcm", "2022-blake3-chacha8-poly1305", "2022-blake3-chacha20-poly1305"}) do
+			for k, v in ipairs({"2022-blake3-aes-128-gcm", "2022-blake3-aes-256-gcm", "2022-blake3-chacha20-poly1305"}) do
 				if method:lower() == v:lower() then
 					aead2022 = true
 				end
 			end
 			if aead2022 then
-				if ss_aead_type_default == "xray" and has_xray and not result.plugin then
+				if ss_aead_type_default == "sing-box" and has_singbox and not result.plugin then
+					result.type = 'sing-box'
+					result.protocol = 'shadowsocks'
+				elseif ss_aead_type_default == "xray" and has_xray and not result.plugin then
 					result.type = 'Xray'
 					result.protocol = 'shadowsocks'
 					result.transport = 'tcp'
@@ -644,8 +634,8 @@ local function processData(szType, content, add_mode, add_from)
 		end
 		if trojan_type_default == "trojan-plus" and has_trojan_plus then
 			result.type = "Trojan-Plus"
-		elseif trojan_type_default == "v2ray" and has_v2ray then
-			result.type = 'V2ray'
+		elseif trojan_type_default == "sing-box" and has_singbox then
+			result.type = 'sing-box'
 			result.protocol = 'trojan'
 		elseif trojan_type_default == "xray" and has_xray then
 			result.type = 'Xray'
@@ -721,10 +711,17 @@ local function processData(szType, content, add_mode, add_from)
 		result.group = content.airport
 		result.remarks = content.remarks
 	elseif szType == "vless" then
+		if has_singbox then
+			result.type = 'sing-box'
+		end
 		if has_xray then
 			result.type = 'Xray'
-		elseif has_v2ray then
-			result.type = 'V2ray'
+		end
+		if vless_type_default == "sing-box" and has_singbox then
+			result.type = 'sing-box'
+		end
+		if vless_type_default == "xray" and has_xray then
+			result.type = "Xray"
 		end
 		result.protocol = "vless"
 		local alias = ""
@@ -800,10 +797,11 @@ local function processData(szType, content, add_mode, add_from)
 			
 			result.encryption = params.encryption or "none"
 
+			result.flow = params.flow or nil
+
 			result.tls = "0"
 			if params.security == "tls" or params.security == "reality" then
 				result.tls = "1"
-				result.tlsflow = params.flow or nil
 				result.tls_serverName = (params.sni and params.sni ~= "") and params.sni or params.host
 				result.fingerprint = (params.fp and params.fp ~= "") and params.fp or "chrome"
 				if params.security == "reality" then
@@ -825,7 +823,6 @@ local function processData(szType, content, add_mode, add_from)
 			content = content:sub(0, idx_sp - 1)
 		end
 		result.remarks = UrlDecode(alias)
-		result.type = "Hysteria"
 		
 		local dat = split(content, '%?')
 		local host_port = dat[1]
@@ -863,6 +860,68 @@ local function processData(szType, content, add_mode, add_from)
 		result.hysteria_alpn = params.alpn
 		result.hysteria_up_mbps = params.upmbps
 		result.hysteria_down_mbps = params.downmbps
+
+		if has_singbox then
+			result.type = 'sing-box'
+			result.protocol = "hysteria"
+		end
+	elseif szType == 'hysteria2' or szType == 'hy2' then
+		local alias = ""
+		if content:find("#") then
+			local idx_sp = content:find("#")
+			alias = content:sub(idx_sp + 1, -1)
+			content = content:sub(0, idx_sp - 1)
+		end
+		result.remarks = UrlDecode(alias)
+		local Info = content
+		if content:find("@") then
+			local contents = split(content, "@")
+			result.hysteria2_auth_password = UrlDecode(contents[1])
+			Info = (contents[2] or ""):gsub("/%?", "?")
+		end
+		local query = split(Info, "?")
+		local host_port = query[1]
+		local params = {}
+		for _, v in pairs(split(query[2], '&')) do
+			local t = split(v, '=')
+			params[string.lower(t[1])] = UrlDecode(t[2])
+		end
+		-- [2001:4860:4860::8888]:443
+		-- 8.8.8.8:443
+		if host_port:find(":") then
+			local sp = split(host_port, ":")
+			result.port = sp[#sp]
+			if api.is_ipv6addrport(host_port) then
+				result.address = api.get_ipv6_only(host_port)
+			else
+				result.address = sp[1]
+			end
+		else
+			result.address = host_port
+		end
+		result.tls_serverName = params.sni
+		if params.insecure and (params.insecure == "1" or params.insecure == "0") then
+			result.tls_allowInsecure = params.insecure
+			--log(result.remarks ..' 使用节点AllowInsecure设定: '.. result.tls_allowInsecure)
+		else
+			result.tls_allowInsecure = allowInsecure_default and "1" or "0"
+		end
+		result.hysteria2_tls_pinSHA256 = params.pinSHA256
+
+		if has_hysteria2 then
+			result.type = "Hysteria2"
+			if params["obfs-password"] then
+				result.hysteria2_obfs = params["obfs-password"]
+			end
+		end
+		if hysteria2_type_default == "sing-box" and has_singbox then
+			result.type = 'sing-box'
+			result.protocol = "hysteria2"
+			if params["obfs-password"] then
+				result.hysteria2_obfs_type = "salamander"
+				result.hysteria2_obfs_password = params["obfs-password"]
+			end
+		end
 	else
 		log('暂时不支持' .. szType .. "类型的节点订阅，跳过此节点。")
 		return nil
@@ -1235,6 +1294,18 @@ local execute = function()
 			if trojan_type ~= "global" then
 				trojan_type_default = trojan_type
 			end
+			local vmess_type = value.vmess_type or "global"
+			if vmess_type ~= "global" then
+				vmess_type_default = vmess_type
+			end
+			local vless_type = value.vless_type or "global"
+			if vless_type ~= "global" then
+				vless_type_default = vless_type
+			end
+			local hysteria2_type = value.hysteria2_type or "global"
+			if hysteria2_type ~= "global" then
+				hysteria2_type_default = hysteria2_type
+			end
 			local ua = value.user_agent
 			log('正在订阅:【' .. remark .. '】' .. url)
 			local raw = curl(url, "/tmp/" .. cfgid, ua)
@@ -1254,6 +1325,9 @@ local execute = function()
 			filter_keyword_keep_list_default = uci:get(appname, "@global_subscribe[0]", "filter_keep_list") or {}
 			ss_aead_type_default = uci:get(appname, "@global_subscribe[0]", "ss_aead_type") or "shadowsocks-libev"
 			trojan_type_default = uci:get(appname, "@global_subscribe[0]", "trojan_type") or "trojan-plus"
+			vmess_type_default = uci:get(appname, "@global_subscribe[0]", "vmess_type") or "xray"
+			vless_type_default = uci:get(appname, "@global_subscribe[0]", "vless_type") or "xray"
+			hysteria2_type_default = uci:get(appname, "@global_subscribe[0]", "hysteria2_type") or "hysteria2"
 		end
 
 		if #fail_list > 0 then
