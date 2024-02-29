@@ -392,10 +392,30 @@ local function processData(szType, content, add_mode, add_from)
 		result.remarks = info.ps
 		-- result.mux = 1
 		-- result.mux_concurrency = 8
+
+		if not info.net then
+			info.net = "tcp"
+		end
 		info.net = string.lower(info.net)
+		result.transport = info.net
 		if info.net == 'ws' then
 			result.ws_host = info.host
 			result.ws_path = info.path
+			if result.type == "sing-box" and info.path then
+				local ws_path_dat = split(info.path, "?")
+				local ws_path = ws_path_dat[1]
+				local ws_path_params = {}
+				for _, v in pairs(split(ws_path_dat[2], '&')) do
+					local t = split(v, '=')
+					ws_path_params[t[1]] = t[2]
+				end
+				if ws_path_params.ed and tonumber(ws_path_params.ed) then
+					result.ws_path = ws_path
+					result.ws_enableEarlyData = "1"
+					result.ws_maxEarlyData = tonumber(ws_path_params.ed)
+					result.ws_earlyDataHeaderName = "Sec-WebSocket-Protocol"
+				end
+			end
 		end
 		if info.net == 'h2' then
 			result.h2_host = info.host
@@ -427,7 +447,6 @@ local function processData(szType, content, add_mode, add_from)
 		if info.net == 'grpc' then
 			result.grpc_serviceName = info.path
 		end
-		result.transport = info.net
 		if not info.security then result.security = "auto" end
 		if info.tls == "tls" or info.tls == "1" then
 			result.tls = "1"
@@ -660,10 +679,29 @@ local function processData(szType, content, add_mode, add_from)
 				result.address = host_port
 			end
 
+			if not params.type then
+				params.type = "tcp"
+			end
 			params.type = string.lower(params.type)
+			result.transport = params.type
 			if params.type == 'ws' then
 				result.ws_host = params.host
 				result.ws_path = params.path
+				if result.type == "sing-box" and params.path then
+					local ws_path_dat = split(params.path, "?")
+					local ws_path = ws_path_dat[1]
+					local ws_path_params = {}
+					for _, v in pairs(split(ws_path_dat[2], '&')) do
+						local t = split(v, '=')
+						ws_path_params[t[1]] = t[2]
+					end
+					if ws_path_params.ed and tonumber(ws_path_params.ed) then
+						result.ws_path = ws_path
+						result.ws_enableEarlyData = "1"
+						result.ws_maxEarlyData = tonumber(ws_path_params.ed)
+						result.ws_earlyDataHeaderName = "Sec-WebSocket-Protocol"
+					end
+				end
 			end
 			if params.type == 'h2' or params.type == 'http' then
 				params.type = "h2"
@@ -695,7 +733,6 @@ local function processData(szType, content, add_mode, add_from)
 				if params.serviceName then result.grpc_serviceName = params.serviceName end
 				result.grpc_mode = params.mode
 			end
-			result.transport = params.type
 			
 			result.encryption = params.encryption or "none"
 
@@ -1103,33 +1140,38 @@ local function parse_link(raw, add_mode, add_from)
 
 		for _, v in ipairs(nodes) do
 			if v then
-				local result
-				if szType == 'ssd' then
-					result = processData(szType, v, add_mode, add_from)
-				elseif not szType then
-					local node = trim(v)
-					local dat = split(node, "://")
-					if dat and dat[1] and dat[2] then
-						if dat[1] == 'ss' or dat[1] == 'trojan' then
-							result = processData(dat[1], dat[2], add_mode, add_from)
+				xpcall(function ()
+					local result
+					if szType == 'ssd' then
+						result = processData(szType, v, add_mode, add_from)
+					elseif not szType then
+						local node = trim(v)
+						local dat = split(node, "://")
+						if dat and dat[1] and dat[2] then
+							if dat[1] == 'ss' or dat[1] == 'trojan' then
+								result = processData(dat[1], dat[2], add_mode, add_from)
+							else
+								result = processData(dat[1], base64Decode(dat[2]), add_mode, add_from)
+							end
+						end
+					else
+						log('跳过未知类型: ' .. szType)
+					end
+					-- log(result)
+					if result then
+						if not result.type then
+							log('丢弃节点:' .. result.remarks .. ",找不到可使用二进制.")
+						elseif (add_mode == "2" and is_filter_keyword(result.remarks)) or not result.address or result.remarks == "NULL" or result.address == "127.0.0.1" or
+								(not datatypes.hostname(result.address) and not (api.is_ip(result.address))) then
+							log('丢弃过滤节点: ' .. result.type .. ' 节点, ' .. result.remarks)
 						else
-							result = processData(dat[1], base64Decode(dat[2]), add_mode, add_from)
+							tinsert(node_list, result)
 						end
 					end
-				else
-					log('跳过未知类型: ' .. szType)
+				end, function ()
+					log(v, "解析错误，跳过此节点。")
 				end
-				-- log(result)
-				if result then
-					if not result.type then
-						log('丢弃节点:' .. result.remarks .. ",找不到可使用二进制.")
-					elseif (add_mode == "2" and is_filter_keyword(result.remarks)) or not result.address or result.remarks == "NULL" or result.address == "127.0.0.1" or
-							(not datatypes.hostname(result.address) and not (api.is_ip(result.address))) then
-						log('丢弃过滤节点: ' .. result.type .. ' 节点, ' .. result.remarks)
-					else
-						tinsert(node_list, result)
-					end
-				end
+			)
 			end
 		end
 		if #node_list > 0 then
