@@ -4,6 +4,7 @@
 . /usr/share/openclash/openclash_ps.sh
 . /usr/share/openclash/log.sh
 . /lib/functions/procd.sh
+. /usr/share/openclash/openclash_curl.sh
 
 set_lock() {
    exec 889>"/tmp/lock/openclash_subs.lock" 2>/dev/null
@@ -27,8 +28,20 @@ router_self_proxy=$(uci -q get openclash.config.router_self_proxy || echo 1)
 FW4=$(command -v fw4)
 CLASH="/etc/openclash/clash"
 CLASH_CONFIG="/etc/openclash"
+JOB_COUNTER_FILE="/tmp/openclash_jobs"
 restart=0
 only_download=0
+
+inc_job_counter() {
+   flock -x 999
+   local cnt=0
+   [ -f "$JOB_COUNTER_FILE" ] && cnt=$(cat "$JOB_COUNTER_FILE")
+   cnt=$((cnt+1))
+   echo "$cnt" > "$JOB_COUNTER_FILE"
+   flock -u 999
+}
+exec 999>"/tmp/lock/openclash_jobs.lock"
+inc_job_counter
 
 urlencode() {
    if [ "$#" -eq 1 ]; then
@@ -70,16 +83,20 @@ config_download()
 LOG_OUT "Tip: Config File【$name】Downloading User-Agent【$sub_ua】..."
 if [ -n "$subscribe_url_param" ]; then
    if [ -n "$c_address" ]; then
-      echo "$LOGTIME Tip: Config File【$name】Downloading URL【$c_address$subscribe_url_param】..." >> $LOG_FILE
-      curl -SsL --connect-timeout 30 -m 60 --speed-time 30 --speed-limit 1 --retry 2 -H "$sub_ua" "$c_address""$subscribe_url_param" -o "$CFG_FILE" 2>&1 |sed ':a;N;$!ba; s/\n/ /g' | awk -v time="$(date "+%Y-%m-%d %H:%M:%S")" -v file="$CFG_FILE" '{print time "【" file "】Download Failed:【"$0"】"}' >> "$LOG_FILE"
+      LOG_INFO "Tip: Config File【$name】Downloading URL【$c_address$subscribe_url_param】..."
+      DOWNLOAD_URL="${c_address}${subscribe_url_param}"
+      DOWNLOAD_PARAM="$sub_ua"
    else
-      echo "$LOGTIME Tip: Config File【$name】Downloading URL【https://api.dler.io/sub$subscribe_url_param】..." >> $LOG_FILE
-      curl -SsL --connect-timeout 30 -m 60 --speed-time 30 --speed-limit 1 --retry 2 -H "$sub_ua" https://api.dler.io/sub"$subscribe_url_param" -o "$CFG_FILE" 2>&1 |sed ':a;N;$!ba; s/\n/ /g' | awk -v time="$(date "+%Y-%m-%d %H:%M:%S")" -v file="$CFG_FILE" '{print time "【" file "】Download Failed:【"$0"】"}' >> "$LOG_FILE"
+      LOG_INFO "Tip: Config File【$name】Downloading URL【https://api.dler.io/sub$subscribe_url_param】..."
+      DOWNLOAD_URL="https://api.dler.io/sub${subscribe_url_param}"
+      DOWNLOAD_PARAM="$sub_ua"
    fi
 else
-   echo "$LOGTIME Tip: Config File【$name】Downloading URL【$subscribe_url】..." >> $LOG_FILE
-   curl -SsL --connect-timeout 30 -m 60 --speed-time 30 --speed-limit 1 --retry 2 -H "$sub_ua" "$subscribe_url" -o "$CFG_FILE" 2>&1 |sed ':a;N;$!ba; s/\n/ /g' | awk -v time="$(date "+%Y-%m-%d %H:%M:%S")" -v file="$CFG_FILE" '{print time "【" file "】Download Failed:【"$0"】"}' >> "$LOG_FILE"
+   LOG_INFO "Tip: Config File【$name】Downloading URL【$subscribe_url】..."
+   DOWNLOAD_URL="${subscribe_url}"
+   DOWNLOAD_PARAM="$sub_ua"
 fi
+DOWNLOAD_FILE_CURL "$DOWNLOAD_URL" "$CFG_FILE" "$DOWNLOAD_PARAM"
 }
 
 config_cus_up()
@@ -382,7 +399,7 @@ sub_info_get()
    config_get "rule_provider" "$section" "rule_provider" ""
    config_get "custom_template_url" "$section" "custom_template_url" ""
    config_get "de_ex_keyword" "$section" "de_ex_keyword" ""
-   config_get "sub_ua" "$section" "sub_ua" "Clash"
+   config_get "sub_ua" "$section" "sub_ua" "clash.meta"
    
    if [ "$enabled" -eq 0 ]; then
       if [ -n "$2" ]; then
@@ -402,10 +419,6 @@ sub_info_get()
       udp="&udp=true"
    else
       udp=""
-   fi
-
-   if [ -n "$sub_ua" ]; then
-      sub_ua="User-Agent: $sub_ua"
    fi
    
    if [ "$rule_provider" == "true" ]; then
@@ -516,18 +529,32 @@ config_foreach sub_info_get "config_subscribe" "$1"
 uci -q delete openclash.config.config_update_path
 uci commit openclash
 
-if [ "$restart" -eq 1 ] && [ "$(unify_ps_prevent)" -eq 0 ]; then
-   /etc/init.d/openclash restart >/dev/null 2>&1 &
-elif [ "$restart" -eq 0 ] && [ "$(unify_ps_prevent)" -eq 0 ] && [ "$(uci -q get openclash.config.restart)" -eq 1 ]; then
-   /etc/init.d/openclash restart >/dev/null 2>&1 &
-   uci -q set openclash.config.restart=0
-   uci -q commit openclash
-elif [ "$restart" -eq 1 ] && [ "$(unify_ps_prevent)" -eq 0 ]; then
-   uci -q set openclash.config.restart=1
-   uci -q commit openclash
-else
-   sed -i '/openclash.sh/d' $CRON_FILE 2>/dev/null
-   [ "$(uci -q get openclash.config.auto_update)" -eq 1 ] && [ "$(uci -q get openclash.config.config_auto_update_mode)" -ne 1 ] && echo "0 $(uci -q get openclash.config.auto_update_time) * * $(uci -q get openclash.config.config_update_week_time) /usr/share/openclash/openclash.sh" >> $CRON_FILE
-   /etc/init.d/cron restart
-fi
+dec_job_counter_and_restart() {
+   flock -x 999
+   local cnt=0
+   [ -f "$JOB_COUNTER_FILE" ] && cnt=$(cat "$JOB_COUNTER_FILE")
+   cnt=$((cnt-1))
+   [ $cnt -lt 0 ] && cnt=0
+   echo "$cnt" > "$JOB_COUNTER_FILE"
+   if [ $cnt -eq 0 ]; then
+      if [ "$restart" -eq 1 ] && [ "$(unify_ps_prevent)" -eq 0 ]; then
+         /etc/init.d/openclash restart >/dev/null 2>&1 &
+      elif [ "$restart" -eq 0 ] && [ "$(unify_ps_prevent)" -eq 0 ] && [ "$(uci -q get openclash.config.restart)" -eq 1 ]; then
+         /etc/init.d/openclash restart >/dev/null 2>&1 &
+         uci -q set openclash.config.restart=0
+         uci -q commit openclash
+      elif [ "$restart" -eq 1 ]; then
+         uci -q set openclash.config.restart=1
+         uci -q commit openclash
+      else
+         sed -i '/openclash.sh/d' $CRON_FILE 2>/dev/null
+         [ "$(uci -q get openclash.config.auto_update)" -eq 1 ] && [ "$(uci -q get openclash.config.config_auto_update_mode)" -ne 1 ] && echo "0 $(uci -q get openclash.config.auto_update_time) * * $(uci -q get openclash.config.config_update_week_time) /usr/share/openclash/openclash.sh" >> $CRON_FILE
+         /etc/init.d/cron restart
+      fi
+      rm -rf "$JOB_COUNTER_FILE" >/dev/null 2>&1
+   fi
+   flock -u 999
+}
+
+dec_job_counter_and_restart
 del_lock

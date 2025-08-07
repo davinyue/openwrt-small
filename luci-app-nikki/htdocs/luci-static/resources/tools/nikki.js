@@ -28,6 +28,7 @@ const callNikkiVersion = rpc.declare({
 const callNikkiProfile = rpc.declare({
     object: 'luci.nikki',
     method: 'profile',
+    params: [ 'defaults' ],
     expect: { '': {} }
 });
 
@@ -35,6 +36,12 @@ const callNikkiUpdateSubscription = rpc.declare({
     object: 'luci.nikki',
     method: 'update_subscription',
     params: ['section_id'],
+    expect: { '': {} }
+});
+
+const callNikkiGetIdentifiers = rpc.declare({
+    object: 'luci.nikki',
+    method: 'get_identifiers',
     expect: { '': {} }
 });
 
@@ -56,6 +63,7 @@ const proxyProvidersDir = `${providersDir}/proxy`;
 const logDir = `/var/log/nikki`;
 const appLogPath = `${logDir}/app.log`;
 const coreLogPath = `${logDir}/core.log`;
+const debugLogPath = `${logDir}/debug.log`;
 const nftDir = `${homeDir}/nftables`;
 const reservedIPNFT = `${nftDir}/reserved_ip.nft`;
 const reservedIP6NFT = `${nftDir}/reserved_ip6.nft`;
@@ -64,13 +72,14 @@ return baseclass.extend({
     homeDir: homeDir,
     profilesDir: profilesDir,
     subscriptionsDir: subscriptionsDir,
-    ruleProvidersDir: ruleProvidersDir,
-    proxyProvidersDir: proxyProvidersDir,
     mixinFilePath: mixinFilePath,
     runDir: runDir,
+    runProfilePath: runProfilePath,
+    ruleProvidersDir: ruleProvidersDir,
+    proxyProvidersDir: proxyProvidersDir,
     appLogPath: appLogPath,
     coreLogPath: coreLogPath,
-    runProfilePath: runProfilePath,
+    debugLogPath: debugLogPath,
     reservedIPNFT: reservedIPNFT,
     reservedIP6NFT: reservedIP6NFT,
 
@@ -90,8 +99,8 @@ return baseclass.extend({
         return callNikkiVersion();
     },
 
-    profile: function () {
-        return callNikkiProfile();
+    profile: function (defaults) {
+        return callNikkiProfile(defaults);
     },
 
     updateSubscription: function (section_id) {
@@ -99,8 +108,9 @@ return baseclass.extend({
     },
 
     api: async function (method, path, query, body) {
-        const apiListen = uci.get('nikki', 'mixin', 'api_listen');
-        const apiSecret = uci.get('nikki', 'mixin', 'api_secret') ?? '';
+        const profile = await callNikkiProfile({ 'external-controller': null, 'secret': null });
+        const apiListen = profile['external-controller'];
+        const apiSecret = profile['secret'] ?? '';
         const apiPort = apiListen.substring(apiListen.lastIndexOf(':') + 1);
         const url = `http://${window.location.hostname}:${apiPort}${path}`;
         return request.request(url, {
@@ -112,9 +122,10 @@ return baseclass.extend({
     },
 
     openDashboard: async function () {
-        const uiName = uci.get('nikki', 'mixin', 'ui_name');
-        const apiListen = uci.get('nikki', 'mixin', 'api_listen');
-        const apiSecret = uci.get('nikki', 'mixin', 'api_secret') ?? '';
+        const profile = await callNikkiProfile({ 'external-ui-name': null, 'external-controller': null, 'secret': null });
+        const uiName = profile['external-ui-name'];
+        const apiListen = profile['external-controller'];
+        const apiSecret = profile['secret'] ?? '';
         const apiPort = apiListen.substring(apiListen.lastIndexOf(':') + 1);
         const params = {
             host: window.location.hostname,
@@ -134,6 +145,10 @@ return baseclass.extend({
 
     updateDashboard: function () {
         return this.api('POST', '/upgrade/ui');
+    },
+
+    getIdentifiers: function () {
+        return callNikkiGetIdentifiers();
     },
 
     listProfiles: function () {
@@ -166,17 +181,5 @@ return baseclass.extend({
 
     debug: function () {
         return callNikkiDebug();
-    },
-
-    getUsers: function () {
-        return fs.lines('/etc/passwd').then(function (lines) {
-            return lines.map(function (line) { return line.split(/:/)[0] }).filter(function (user) { return user !== 'root' && user !== 'nikki' });
-        });
-    },
-
-    getGroups: function () {
-        return fs.lines('/etc/group').then(function (lines) {
-            return lines.map(function (line) { return line.split(/:/)[0] }).filter(function (group) { return group !== 'root' && group !== 'nikki' });
-        });
     },
 })

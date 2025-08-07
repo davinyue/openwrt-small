@@ -1,7 +1,7 @@
 local api = require "luci.passwall.api"
 local appname = "passwall"
 local fs = api.fs
-local has_singbox = api.finded_com("singbox")
+local has_singbox = api.finded_com("sing-box")
 local has_xray = api.finded_com("xray")
 local has_fw3 = api.is_finded("fw3")
 local has_fw4 = api.is_finded("fw4")
@@ -106,6 +106,13 @@ o.default = "1:65535"
 o:value("1:65535", translate("All"))
 o:value("53", "DNS")
 o.validate = port_validate
+
+o = s:option(DummyValue, "tips", "　")
+o.rawhtml = true
+o.cfgvalue = function(t, n)
+	return string.format('<font color="red">%s</font>',
+	translate("The port settings support single ports and ranges.<br>Separate multiple ports with commas (,).<br>Example: 21,80,443,1000:2000."))
+end
 
 ---- Use nftables
 o = s:option(ListValue, "use_nft", translate("Firewall tools"))
@@ -234,6 +241,9 @@ if has_xray then
 end
 
 if has_singbox then
+	local version = api.get_app_version("sing-box"):match("[^v]+")
+	local version_ge_1_12_0 = api.compare_versions(version, ">=", "1.12.0")
+
 	s = m:section(TypedSection, "global_singbox", "Sing-Box " .. translate("Settings"))
 	s.anonymous = true
 	s.addremove = false
@@ -242,6 +252,16 @@ if has_singbox then
 	o.default = 0
 	o.rmempty = false
 	o.description = translate("Override the connection destination address with the sniffed domain.<br />When enabled, traffic will match only by domain, ignoring IP rules.<br />If using shunt nodes, configure the domain shunt rules correctly.")
+
+	if version_ge_1_12_0 then
+		o = s:option(Flag, "record_fragment", "TLS Record " .. translate("Fragment"),
+			translate("Split handshake data into multiple TLS records for better censorship evasion. Low overhead. Recommended to enable first."))
+		o.default = 0
+
+		o = s:option(Flag, "fragment", "TLS TCP " .. translate("Fragment"),
+			translate("Split handshake into multiple TCP segments. Enhances obfuscation. May increase delay. Use only if needed."))
+		o.default = 0
+	end
 end
 
 return m
