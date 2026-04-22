@@ -1,4 +1,5 @@
 -- Copyright (C) 2022-2025 xiaorouji
+-- Copyright (C) 2026 Openwrt-Passwall Organization
 
 module("luci.controller.passwall2", package.seeall)
 local api = require "luci.passwall2.api"
@@ -9,6 +10,7 @@ local util = require "luci.util"
 local i18n = require "luci.i18n"
 local fs = api.fs
 local jsonStringify = luci.jsonc.stringify
+local jsonParse = luci.jsonc.parse
 
 function index()
 	if not nixio.fs.access("/etc/config/passwall2") then
@@ -41,7 +43,9 @@ function index()
 	end
 	entry({"admin", "services", appname, "app_update"}, cbi(appname .. "/client/app_update"), _("App Update"), 95).leaf = true
 	entry({"admin", "services", appname, "rule"}, cbi(appname .. "/client/rule"), _("Rule Manage"), 96).leaf = true
-	entry({"admin", "services", appname, "geoview"}, form(appname .. "/client/geoview"), _("Geo View"), 97).leaf = true
+	if api.finded_com("geoview") then
+		entry({"admin", "services", appname, "geoview"}, form(appname .. "/client/geoview"), _("Geo View"), 97).leaf = true
+	end
 	entry({"admin", "services", appname, "node_subscribe_config"}, cbi(appname .. "/client/node_subscribe_config")).leaf = true
 	entry({"admin", "services", appname, "node_config"}, cbi(appname .. "/client/node_config")).leaf = true
 	entry({"admin", "services", appname, "shunt_rules"}, cbi(appname .. "/client/shunt_rules")).leaf = true
@@ -74,13 +78,23 @@ function index()
 	entry({"admin", "services", appname, "connect_status"}, call("connect_status")).leaf = true
 	entry({"admin", "services", appname, "ping_node"}, call("ping_node")).leaf = true
 	entry({"admin", "services", appname, "urltest_node"}, call("urltest_node")).leaf = true
+	entry({"admin", "services", appname, "add_node"}, call("add_node")).leaf = true
+	entry({"admin", "services", appname, "update_node"}, call("update_node")).leaf = true
 	entry({"admin", "services", appname, "set_node"}, call("set_node")).leaf = true
 	entry({"admin", "services", appname, "copy_node"}, call("copy_node")).leaf = true
 	entry({"admin", "services", appname, "clear_all_nodes"}, call("clear_all_nodes")).leaf = true
 	entry({"admin", "services", appname, "delete_select_nodes"}, call("delete_select_nodes")).leaf = true
+	entry({"admin", "services", appname, "reassign_group"}, call("reassign_group")).leaf = true
+	entry({"admin", "services", appname, "get_node"}, call("get_node")).leaf = true
+	entry({"admin", "services", appname, "save_node_order"}, call("save_node_order")).leaf = true
+	entry({"admin", "services", appname, "save_node_list_opt"}, call("save_node_list_opt")).leaf = true
 	entry({"admin", "services", appname, "update_rules"}, call("update_rules")).leaf = true
+	entry({"admin", "services", appname, "rollback_rules"}, call("rollback_rules")).leaf = true
 	entry({"admin", "services", appname, "subscribe_del_node"}, call("subscribe_del_node")).leaf = true
 	entry({"admin", "services", appname, "subscribe_del_all"}, call("subscribe_del_all")).leaf = true
+	entry({"admin", "services", appname, "subscribe_manual"}, call("subscribe_manual")).leaf = true
+	entry({"admin", "services", appname, "subscribe_manual_all"}, call("subscribe_manual_all")).leaf = true
+	entry({"admin", "services", appname, "flush_set"}, call("flush_set")).leaf = true
 
 	--[[Components update]]
 	entry({"admin", "services", appname, "check_passwall2"}, call("app_check")).leaf = true
@@ -104,6 +118,16 @@ local function http_write_json(content)
 	http.write(jsonStringify(content or {code = 1}))
 end
 
+local function http_write_json_ok(data)
+	http.prepare_content("application/json")
+	http.write(jsonStringify({code = 1, data = data}))
+end
+
+local function http_write_json_error(data)
+	http.prepare_content("application/json")
+	http.write(jsonStringify({code = 0, data = data}))
+end
+
 function reset_config()
 	luci.sys.call('/etc/init.d/passwall2 stop')
 	luci.sys.call('[ -f "/usr/share/passwall2/0_default_config" ] && cp -f /usr/share/passwall2/0_default_config /etc/config/passwall2')
@@ -125,14 +149,15 @@ function hide_menu()
 end
 
 function link_add_node()
-	-- 分片接收以突破uhttpd的限制
+	-- Fragmented reception to overcome uhttpd limitations
 	local tmp_file = "/tmp/links.conf"
 	local chunk = http.formvalue("chunk")
 	local chunk_index = tonumber(http.formvalue("chunk_index"))
 	local total_chunks = tonumber(http.formvalue("total_chunks"))
+	local group = http.formvalue("group") or "default"
 
 	if chunk and chunk_index ~= nil and total_chunks ~= nil then
-		-- 按顺序拼接到文件
+		-- Assemble the files in order
 		local mode = "a"
 		if chunk_index == 0 then
 			mode = "w"
@@ -142,9 +167,9 @@ function link_add_node()
 			f:write(chunk)
 			f:close()
 		end
-		-- 如果是最后一片，才执行
+		-- If it's the last piece, then it will be executed.
 		if chunk_index + 1 == total_chunks then
-			luci.sys.call("lua /usr/share/passwall2/subscribe.lua add log")
+			luci.sys.call("lua /usr/share/passwall2/subscribe.lua add " .. group)
 		end
 	end
 end
@@ -251,7 +276,8 @@ function index_status()
 end
 
 function haproxy_status()
-	local e = luci.sys.call(string.format("/bin/busybox top -bn1 | grep -v grep | grep '%s/bin/' | grep haproxy >/dev/null", appname)) == 0
+	local e = {}
+	e["status"] = luci.sys.call(string.format("/bin/busybox top -bn1 | grep -v grep | grep '%s/bin/' | grep haproxy >/dev/null", appname)) == 0
 	http_write_json(e)
 end
 
@@ -324,6 +350,45 @@ function urltest_node()
 	http_write_json(e)
 end
 
+function add_node()
+	local redirect = http.formvalue("redirect")
+
+	local uuid = api.gen_short_uuid()
+	uci:section(appname, "nodes", uuid)
+
+	local group = http.formvalue("group")
+	if group and group ~= "default" then
+		uci:set(appname, uuid, "group", group)
+	end
+
+	uci:set(appname, uuid, "type", "Xray")
+
+	if redirect == "1" then
+		api.uci_save(uci, appname)
+		http.redirect(api.url("node_config", uuid))
+	else
+		api.uci_save(uci, appname, true, true)
+		http_write_json({result = uuid})
+	end
+end
+
+function update_node()
+	local id = http.formvalue("id") -- Node id
+	local data = http.formvalue("data") -- json new Data
+	if id and data then
+		local data_t = jsonParse(data) or {}
+		if next(data_t) then
+			for k, v in pairs(data_t) do
+				uci:set(appname, id, k, v)
+			end
+			api.uci_save(uci, appname)
+			http_write_json_ok()
+			return
+		end
+	end
+	http_write_json_error()
+end
+
 function set_node()
 	local type = http.formvalue("type")
 	local config = http.formvalue("config")
@@ -338,17 +403,11 @@ function copy_node()
 	local uuid = api.gen_short_uuid()
 	uci:section(appname, "nodes", uuid)
 	for k, v in pairs(uci:get_all(appname, section)) do
-		local filter = k:find("%.")
-		if filter and filter == 1 then
-		else
-			xpcall(function()
-				uci:set(appname, uuid, k, v)
-			end,
-			function(e)
-			end)
+		if not k:match("^%.") and k ~= "group" then
+			if k == "remarks" then v = (v or "") .. "(1)" end
+			uci:set(appname, uuid, k, v)
 		end
 	end
-	uci:delete(appname, uuid, "add_from")
 	uci:set(appname, uuid, "add_mode", 1)
 	api.uci_save(uci, appname)
 	http.redirect(api.url("node_config", uuid))
@@ -374,6 +433,9 @@ function clear_all_nodes()
 	end)
 	uci:foreach(appname, "subscribe_list", function(t)
 		uci:delete(appname, t[".name"], "md5")
+		uci:delete(appname, t[".name"], "chain_proxy")
+		uci:delete(appname, t[".name"], "preproxy_node")
+		uci:delete(appname, t[".name"], "to_node")
 	end)
 
 	api.uci_save(uci, appname, true, true)
@@ -381,6 +443,7 @@ end
 
 function delete_select_nodes()
 	local ids = http.formvalue("ids")
+	local redirect = http.formvalue("redirect")
 	string.gsub(ids, '[^' .. "," .. ']+', function(w)
 		if (uci:get(appname, "@global[0]", "node") or "") == w then
 			uci:delete(appname, '@global[0]', "node")
@@ -416,12 +479,43 @@ function delete_select_nodes()
 				uci:delete(appname, t[".name"], "to_node")
 				uci:delete(appname, t[".name"], "chain_proxy")
 			end
+			local list_name = t["urltest_node"] and "urltest_node" or (t["balancing_node"] and "balancing_node")
+			if list_name then
+				local nodes = uci:get_list(appname, t[".name"], list_name)
+				if nodes then
+					local changed = false
+					local new_nodes = {}
+					for _, node in ipairs(nodes) do
+						if node ~= w then
+							table.insert(new_nodes, node)
+						else
+							changed = true
+						end
+					end
+					if changed then
+						uci:set_list(appname, t[".name"], list_name, new_nodes)
+					end
+				end
+			end
+			if t["fallback_node"] == w then
+				uci:delete(appname, t[".name"], "fallback_node")
+			end
+		end)
+		uci:foreach(appname, "subscribe_list", function(t)
+			if t["preproxy_node"] == w then
+				uci:delete(appname, t[".name"], "preproxy_node")
+				uci:delete(appname, t[".name"], "chain_proxy")
+			end
+			if t["to_node"] == w then
+				uci:delete(appname, t[".name"], "to_node")
+				uci:delete(appname, t[".name"], "chain_proxy")
+			end
 		end)
 		if (uci:get(appname, w, "add_mode") or "0") == "2" then
-			local add_from = uci:get(appname, w, "add_from") or ""
-			if add_from ~= "" then
+			local group = uci:get(appname, w, "group") or ""
+			if group ~= "" then
 				uci:foreach(appname, "subscribe_list", function(t)
-					if t["remark"] == add_from then
+					if t["remark"] == group then
 						uci:delete(appname, t[".name"], "md5")
 					end
 				end)
@@ -429,13 +523,106 @@ function delete_select_nodes()
 		end
 		uci:delete(appname, w)
 	end)
-	api.uci_save(uci, appname, true, true)
+	if redirect == "1" then
+		api.uci_save(uci, appname)
+		http.redirect(api.url("node_list"))
+	else
+		api.uci_save(uci, appname, true, true)
+	end
+end
+
+function get_node()
+	local id = http.formvalue("id")
+	local result = {}
+	local show_node_info = api.uci_get_type("global_other", "show_node_info", "0")
+
+	local function add_is_ipv6_key(o)
+		if o and o.address and show_node_info == "1" then
+			local f = api.get_ipv6_full(o.address)
+			if f ~= "" then
+				o.ipv6 = true
+				o.full_address = f
+			end
+		end
+	end
+
+	if id then
+		result = uci:get_all(appname, id)
+		add_is_ipv6_key(result)
+	else
+		local default_nodes = {}
+		local other_nodes = {}
+		uci:foreach(appname, "nodes", function(t)
+			add_is_ipv6_key(t)
+			if not t.group or t.group == "" then
+				default_nodes[#default_nodes + 1] = t
+			else
+				other_nodes[#other_nodes + 1] = t
+			end
+		end)
+		for i = 1, #default_nodes do result[#result + 1] = default_nodes[i] end
+		for i = 1, #other_nodes do result[#result + 1] = other_nodes[i] end
+	end
+	http_write_json(result)
+end
+
+function save_node_order()
+	local ids = http.formvalue("ids") or ""
+	local new_order = {}
+	for id in ids:gmatch("([^,]+)") do
+		new_order[#new_order + 1] = id
+	end
+	for idx, name in ipairs(new_order) do
+		luci.sys.call(string.format("uci -q reorder %s.%s=%d", appname, name, idx - 1))
+	end
+	api.sh_uci_commit(appname)
+	http_write_json({ status = "ok" })
+end
+
+function reassign_group()
+	local ids = http.formvalue("ids") or ""
+	local group = http.formvalue("group") or "default"
+	for id in ids:gmatch("([^,]+)") do
+		if group ~="" and group ~= "default" then
+			api.sh_uci_set(appname, id, "group", group)
+		else
+			api.sh_uci_del(appname, id, "group")
+		end
+	end
+	api.sh_uci_commit(appname)
+	http_write_json({ status = "ok" })
+end
+
+function save_node_list_opt()
+	local option = http.formvalue("option") or ""
+	local value = http.formvalue("value") or ""
+	if option ~= "" then
+		api.sh_uci_set(appname, "@global_other[0]", option, value, true)
+	end
+	http_write_json({ status = "ok" })
 end
 
 function update_rules()
-	local update = http.formvalue("update")
+	local update = http.formvalue("update") or ""
+	if update == "" then
+		http_write_json_error({ message = "missing update target" })
+		return
+	end
 	luci.sys.call("lua /usr/share/passwall2/rule_update.lua log '" .. update .. "' > /dev/null 2>&1 &")
 	http_write_json()
+end
+
+function rollback_rules()
+	local arg_type = http.formvalue("type")
+	if arg_type ~= "geoip" and arg_type ~= "geosite" then
+		http_write_json_error()
+		return
+	end
+	local bak_dir = "/tmp/bak_v2ray/"
+	local geo_dir = (uci:get(appname, "@global_rules[0]", "v2ray_location_asset") or "/usr/share/v2ray/")
+	fs.move(bak_dir .. arg_type .. ".dat", geo_dir .. arg_type .. ".dat")
+	fs.rmdir(bak_dir)
+	http_write_json_ok()
 end
 
 function server_user_status()
@@ -508,28 +695,37 @@ function create_backup()
 end
 
 function restore_backup()
+	local result = { status = "error", message = "unknown error" }
 	local ok, err = pcall(function()
 		local filename = http.formvalue("filename")
 		local chunk = http.formvalue("chunk")
 		local chunk_index = tonumber(http.formvalue("chunk_index") or "-1")
 		local total_chunks = tonumber(http.formvalue("total_chunks") or "-1")
-		if not filename or not chunk then
-			http_write_json({ status = "error", message = "Missing filename or chunk" })
+		if not filename then
+			result = { status = "error", message = "Missing filename" }
+			return
+		end
+		if not chunk then
+			result = { status = "error", message = "Missing chunk data" }
 			return
 		end
 		local file_path = "/tmp/" .. filename
 		local decoded = nixio.bin.b64decode(chunk)
+		if not decoded then
+			result = { status = "error", message = "Base64 decode failed" }
+			return
+		end
 		local fp = io.open(file_path, "a+")
 		if not fp then
-			http_write_json({ status = "error", message = "Failed to open file for writing: " .. file_path })
+			result = { status = "error", message = "Failed to open file: " .. file_path }
 			return
 		end
 		fp:write(decoded)
 		fp:close()
 		if chunk_index + 1 == total_chunks then
 			api.sys.call("echo '' > /tmp/log/passwall2.log")
-			api.log(" * PassWall2 配置文件上传成功…")
-			local temp_dir = '/tmp/passwall_bak'
+			api.log(0, string.format(" * PassWall2 %s", i18n.translate("Configuration file uploaded successfully…")))
+			local temp_dir = '/tmp/passwall2_bak'
 			api.sys.call("mkdir -p " .. temp_dir)
 			if api.sys.call("tar -xzf " .. file_path .. " -C " .. temp_dir) == 0 then
 				for _, backup_file in ipairs(backup_files) do
@@ -538,23 +734,25 @@ function restore_backup()
 						api.sys.call("cp -f " .. temp_file .. " " .. backup_file)
 					end
 				end
-				api.log(" * PassWall2 配置还原成功…")
-				api.log(" * 重启 PassWall2 服务中…\n")
-				api.sys.call('/etc/init.d/passwall2 restart > /dev/null 2>&1 &')
-				api.sys.call('/etc/init.d/passwall2_server restart > /dev/null 2>&1 &')
+				api.log(0, string.format(" * PassWall2 %s", i18n.translate("Configuration restored successfully…")))
+				api.log(0, string.format(" * PassWall2 %s", i18n.translate("Service restarting…")))
+				luci.sys.call('/etc/init.d/passwall2 restart > /dev/null 2>&1 &')
+				luci.sys.call('/etc/init.d/passwall2_server restart > /dev/null 2>&1 &')
+				result = { status = "success", message = "Upload completed", path = file_path }
 			else
-				api.log(" * PassWall2 配置文件解压失败，请重试！")
+				api.log(0, string.format(" * PassWall2 %s", i18n.translate("Configuration file decompression failed, please try again!")))
+				result = { status = "error", message = "Decompression failed" }
 			end
 			api.sys.call("rm -rf " .. temp_dir)
 			fs.remove(file_path)
-			http_write_json({ status = "success", message = "Upload completed", path = file_path })
 		else
-			http_write_json({ status = "success", message = "Chunk received" })
+			result = { status = "success", message = "Chunk received" }
 		end
 	end)
 	if not ok then
-		http_write_json({ status = "error", message = tostring(err) })
+		result = { status = "error", message = tostring(err) }
 	end
+	http_write_json(result)
 end
 
 function geo_view()
@@ -565,27 +763,56 @@ function geo_view()
 		http.write(i18n.translate("Please enter query content!"))
 		return
 	end
+	local function get_rules(str, type)
+		local rules_id = {}
+		uci:foreach(appname, "shunt_rules", function(s)
+			local list
+			if type == "geoip" then list = s.ip_list else list = s.domain_list end
+			for line in string.gmatch((list or ""), "[^\r\n]+") do
+				if line ~= "" and not line:find("#") then
+					local prefix, main = line:match("^(.-):(.*)")
+					if not main then main = line end
+					if type == "geoip" and (api.datatypes.ipaddr(str) or api.datatypes.ip6addr(str)) then
+						if main:find(str, 1, true) then rules_id[#rules_id + 1] = s[".name"] end
+					else
+						if main == str then rules_id[#rules_id + 1] = s[".name"] end
+					end
+				end
+			end
+		end)
+		return rules_id
+	end
 	local geo_dir = (uci:get(appname, "@global_rules[0]", "v2ray_location_asset") or "/usr/share/v2ray/"):match("^(.*)/")
 	local geosite_path = geo_dir .. "/geosite.dat"
 	local geoip_path = geo_dir .. "/geoip.dat"
 	local geo_type, file_path, cmd
 	local geo_string = ""
+	local bin = api.finded_com("geoview")
 	if action == "lookup" then
 		if api.datatypes.ipaddr(value) or api.datatypes.ip6addr(value) then
 			geo_type, file_path = "geoip", geoip_path
 		else
 			geo_type, file_path = "geosite", geosite_path
 		end
-		cmd = string.format("geoview -type %s -action lookup -input '%s' -value '%s' -lowmem=true", geo_type, file_path, value)
+		cmd = string.format("%q -type %q -action lookup -input %q -value %q -lowmem=true", bin, geo_type, file_path, value)
 		geo_string = luci.sys.exec(cmd):lower()
 		if geo_string ~= "" then
-			local lines = {}
-			for line in geo_string:gmatch("([^\n]*)\n?") do
-				if line ~= "" then
-					table.insert(lines, geo_type .. ":" .. line)
+			local lines, rules, seen = {}, {}, {}
+			for line in geo_string:gmatch("([^\n]+)") do
+				lines[#lines + 1] = geo_type .. ":" .. line
+				for _, r in ipairs(get_rules(line, geo_type) or {}) do
+					if not seen[r] then seen[r] = true; rules[#rules + 1] = r end
 				end
 			end
+			for _, r in ipairs(get_rules(value, geo_type) or {}) do
+				if not seen[r] then seen[r] = true; rules[#rules + 1] = r end
+			end
 			geo_string = table.concat(lines, "\n")
+			if #rules > 0 then
+				geo_string = geo_string .. "\n--------------------\n"
+				geo_string = geo_string .. i18n.translate("Rules containing this value:") .. "\n"
+				geo_string = geo_string .. table.concat(rules, "\n")
+			end
 		end
 	elseif action == "extract" then
 		local prefix, list = value:match("^(geoip:)(.*)$")
@@ -595,7 +822,7 @@ function geo_view()
 		if prefix and list and list ~= "" then
 			geo_type = prefix:sub(1, -2)
 			file_path = (geo_type == "geoip") and geoip_path or geosite_path
-			cmd = string.format("geoview -type %s -action extract -input '%s' -list '%s' -lowmem=true", geo_type, file_path, list)
+			cmd = string.format("%q -type %q -action extract -input %q -list %q -lowmem=true", bin, geo_type, file_path, list)
 			geo_string = luci.sys.exec(cmd)
 		end
 	end
@@ -618,4 +845,66 @@ end
 function subscribe_del_all()
 	luci.sys.call("lua /usr/share/" .. appname .. "/subscribe.lua truncate > /dev/null 2>&1")
 	http.status(200, "OK")
+end
+
+function subscribe_manual()
+	local section = http.formvalue("section") or ""
+	local current_url = http.formvalue("url") or ""
+	if section == "" or current_url == "" then
+		http_write_json({ success = false, msg = "Missing section or URL, skip." })
+		return
+	end
+	local uci_url = api.sh_uci_get(appname, section, "url")
+	if not uci_url or uci_url == "" then
+		http_write_json({ success = false, msg = i18n.translate("Please save and apply before manually subscribing.") })
+		return
+	end
+	if uci_url ~= current_url then
+		api.sh_uci_set(appname, section, "url", current_url, true)
+	end
+	luci.sys.call("lua /usr/share/" .. appname .. "/subscribe.lua start " .. section .. " manual >/dev/null 2>&1 &")
+	http_write_json({ success = true, msg = "Subscribe triggered." })
+end
+
+function subscribe_manual_all()
+	local sections = http.formvalue("sections") or ""
+	local urls = http.formvalue("urls") or ""
+	if sections == "" or urls == "" then
+		http_write_json({ success = false, msg = "Missing section or URL, skip." })
+		return
+	end
+	local section_list = util.split(sections, ",")
+	local url_list = util.split(urls, ",")
+	-- Check if there are any unsaved configurations.
+	for i, section in ipairs(section_list) do
+		local uci_url = api.sh_uci_get(appname, section, "url")
+		if not uci_url or uci_url == "" then
+			http_write_json({ success = false, msg = i18n.translate("Please save and apply before manually subscribing.") })
+			return
+		end
+	end
+	-- Save URLs that have changed.
+	for i, section in ipairs(section_list) do
+		local current_url = url_list[i] or ""
+		local uci_url = api.sh_uci_get(appname, section, "url")
+		if current_url ~= "" and uci_url ~= current_url then
+			api.sh_uci_set(appname, section, "url", current_url, true)
+		end
+	end
+	luci.sys.call("lua /usr/share/" .. appname .. "/subscribe.lua start all manual >/dev/null 2>&1 &")
+	http_write_json({ success = true, msg = "Subscribe triggered." })
+end
+
+function flush_set()
+	local redirect = http.formvalue("redirect") or "0"
+	local reload = http.formvalue("reload") or "0"
+	if reload == "1" then
+		uci:set(appname, '@global[0]', "flush_set", "1")
+		api.uci_save(uci, appname, true, true)
+	else
+		api.sh_uci_set(appname, "@global[0]", "flush_set", "1", true)
+	end
+	if redirect == "1" then
+		http.redirect(api.url("log"))
+	end
 end

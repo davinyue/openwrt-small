@@ -36,8 +36,6 @@ FIREWALL_INCLUDE_SH="$SH_DIR/firewall_include.sh"
 
 # nftables
 NFT_DIR="$HOME_DIR/nftables"
-RESERVED_IP_NFT="$NFT_DIR/reserved_ip.nft"
-RESERVED_IP6_NFT="$NFT_DIR/reserved_ip6.nft"
 GEOIP_CN_NFT="$NFT_DIR/geoip_cn.nft"
 GEOIP6_CN_NFT="$NFT_DIR/geoip6_cn.nft"
 
@@ -80,11 +78,6 @@ prepare_files() {
 	if [ ! -d "$TEMP_DIR" ]; then
 		mkdir -p "$TEMP_DIR"
 	fi
-}
-
-clear_log() {
-	echo -n > "$APP_LOG_PATH"
-	echo -n > "$CORE_LOG_PATH"
 }
 
 log() {

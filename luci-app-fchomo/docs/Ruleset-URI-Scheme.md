@@ -44,7 +44,7 @@ Can be `domain` or `ipcidr` or `classical`. Rule file behavior.
 
 #### interval
 
-The update interval for the Rule set, in seconds or /^(\d+)(s|m|h|d)?$/.
+The update interval for the Rule set, in seconds or `/^(\d+)(s|m|h|d)?$/`.
 
 #### rawQuery
 
@@ -59,9 +59,11 @@ Base64edStr format file content.
 
 Generation steps:
 
-  1. Base64 encode payload.
-  2. Replace all `+` with `-` and all `/` with `_` in base64 string.
-  3. Remove all `=` from the EOF the base64 string.
+  0. Payload only supports `string` format.
+  1. Compress payload using `gzip`. (Optional)
+  2. Base64 encode payload/compressed payload.
+  3. Replace all `+` with `-` and all `/` with `_` in base64 string.
+  4. Remove all `=` from the EOF the base64 string.
 
 ### URIFragment
 

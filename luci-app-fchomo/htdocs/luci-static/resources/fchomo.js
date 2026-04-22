@@ -8,7 +8,10 @@
 'require validation';
 
 /* Member */
-const rulesetdoc = 'data:text/html;base64,' + 'cmxzdHBsYWNlaG9sZGVy';
+const rulesetdoc = [
+	'data:text/html;base64,',
+'H4sIAAAAAAAAAyvKKS4pyElMTs3Iz0lJLQIA8fIyYQ8AAAA='
+];
 
 const sharkaudio = function() {
 	return 'data:audio/x-wav;base64,' +
@@ -20,9 +23,9 @@ const sharktaikogif = function() {
 'c2hhcmstdGFpa28uZ2lm'
 }()
 
-const less_24_10 = !form.RichListValue;
+const less_25_12 = !form.DynamicList.prototype.renderWidget.toString().match('this\.allowduplicates');
 
-const pr7558_merged = form.DynamicList.prototype.renderWidget.toString().match('this\.allowduplicates');
+const HM_DIR = "/etc/fchomo";
 
 const monospacefonts = [
 	'"Cascadia Code"',
@@ -41,6 +44,22 @@ const checkurls = [
 	['https://www.google.com/generate_204', _('Google')],
 	['https://github.com', _('GitHub')],
 	['https://www.youtube.com', _('YouTube')]
+];
+
+// allowed_congestion    '/proc/sys/net/ipv4/tcp_allowed_congestion_control'
+// available_congestion  '/proc/sys/net/ipv4/tcp_available_congestion_control'
+const congestion_controller = [
+	['', _('Keep default')],
+	['cubic', _('cubic')],
+	['new_reno', _('new_reno')],
+	['bbr', _('bbr')],
+];
+
+const bbr_profiles = [
+	['', _('Keep default')],
+	['standard', _('Standard')],
+	['conservative', _('Conservative')],
+	['aggressive', _('Aggressive')],
 ];
 
 const stunserver = [
@@ -66,6 +85,14 @@ const dashrepos_urlparams = {
 	'metacubex/razord-meta': '?host=%s&port=%s&secret=%s'
 };
 
+const log_levels = [
+	['silent', _('Silent')],
+	['error', _('Error')],
+	['warning', _('Warning')],
+	['info', _('Info')],
+	['debug', _('Debug')]
+];
+
 const glossary = {
 	proxy_group: {
 		prefmt: 'group_%s',
@@ -87,6 +114,10 @@ const glossary = {
 		prefmt: '%s_domain',
 		field: 'nameserver-policy',
 	},
+	dns_node_policy: {
+		prefmt: '%s_nodedomain',
+		field: 'proxy-server-nameserver-policy',
+	},
 	node: {
 		prefmt: 'node_%s',
 		field: 'proxies',
@@ -103,6 +134,10 @@ const glossary = {
 		prefmt: 'rule_%s',
 		field: 'rule-providers',
 	},
+	inbound: {
+		prefmt: 'inbound_%s',
+		field: 'listeners',
+	},
 	server: {
 		prefmt: 'server_%s',
 		field: 'listeners',
@@ -115,17 +150,20 @@ const health_checkurls = [
 ];
 
 const inbound_type = [
-	['http', _('HTTP')],
-	['socks', _('SOCKS')],
-	['mixed', _('Mixed')],
-	['shadowsocks', _('Shadowsocks')],
-	['vmess', _('VMess')],
-	['vless', _('VLESS')],
-	['trojan', _('Trojan')],
-	['anytls', _('AnyTLS')],
-	['tuic', _('TUIC')],
-	['hysteria2', _('Hysteria2')],
-	//['tunnel', _('Tunnel')]
+	['http', _('HTTP') + ' - ' + _('TCP')],
+	['socks', _('SOCKS') + ' - ' + _('TCP/UDP')],
+	['mixed', _('Mixed') + ' - ' + _('TCP/UDP')],
+	['shadowsocks', _('Shadowsocks') + ' - ' + _('TCP/UDP')],
+	['mieru', _('Mieru') + ' - ' + _('TCP/UDP')],
+	['sudoku', _('Sudoku') + ' - ' + _('TCP')],
+	['vmess', _('VMess') + ' - ' + _('TCP')],
+	['vless', _('VLESS') + ' - ' + _('TCP')],
+	['trojan', _('Trojan') + ' - ' + _('TCP')],
+	['anytls', _('AnyTLS') + ' - ' + _('TCP')],
+	['tuic', _('TUIC') + ' - ' + _('UDP')],
+	['hysteria2', _('Hysteria2') + ' - ' + _('UDP')],
+	['trusttunnel', _('TrustTunnel') + ' - ' + _('TCP/UDP')],
+	['tunnel', _('Tunnel') + ' - ' + _('TCP/UDP')]
 ];
 
 const ip_version = [
@@ -144,22 +182,25 @@ const load_balance_strategy = [
 ];
 
 const outbound_type = [
-	['direct', _('DIRECT')],
-	['http', _('HTTP')],
-	['socks5', _('SOCKS5')],
-	['ss', _('Shadowsocks')],
+	['direct', _('DIRECT') + ' - ' + _('TCP/UDP')],
+	['http', _('HTTP') + ' - ' + _('TCP')],
+	['socks5', _('SOCKS5') + ' - ' + _('TCP/UDP')],
+	['ss', _('Shadowsocks') + ' - ' + _('TCP/UDP')],
 	//['ssr', _('ShadowsocksR')], // Deprecated
-	['mieru', _('Mieru')],
-	['snell', _('Snell')],
-	['vmess', _('VMess')],
-	['vless', _('VLESS')],
-	['trojan', _('Trojan')],
-	['anytls', _('AnyTLS')],
-	//['hysteria', _('Hysteria')],
-	['hysteria2', _('Hysteria2')],
-	['tuic', _('TUIC')],
-	['wireguard', _('WireGuard')],
-	['ssh', _('SSH')]
+	['mieru', _('Mieru') + ' - ' + _('TCP/UDP')],
+	['sudoku', _('Sudoku') + ' - ' + _('TCP')],
+	['snell', _('Snell') + ' - ' + _('TCP')],
+	['vmess', _('VMess') + ' - ' + _('TCP')],
+	['vless', _('VLESS') + ' - ' + _('TCP')],
+	['trojan', _('Trojan') + ' - ' + _('TCP')],
+	['anytls', _('AnyTLS') + ' - ' + _('TCP')],
+	//['hysteria', _('Hysteria') + ' - ' + _('UDP')],
+	['hysteria2', _('Hysteria2') + ' - ' + _('UDP')],
+	['tuic', _('TUIC') + ' - ' + _('UDP')],
+	['masque', _('Masque') + ' - ' + _('UDP')], // https://blog.cloudflare.com/post-quantum-warp/
+	['trusttunnel', _('TrustTunnel') + ' - ' + _('TCP/UDP')],
+	['wireguard', _('WireGuard') + ' - ' + _('UDP')],
+	['ssh', _('SSH') + ' - ' + _('TCP')]
 ];
 
 const preset_outbound = {
@@ -173,11 +214,13 @@ const preset_outbound = {
 	],
 	direct: [
 		['', _('null')],
-		['DIRECT']
+		['DIRECT'],
+		['GLOBAL']
 	],
 	dns: [
 		['', 'RULES'],
-		['DIRECT']
+		['DIRECT'],
+		['GLOBAL']
 	]
 };
 
@@ -191,12 +234,14 @@ const proxy_group_type = [
 
 const routing_port_type = [
 	['all', _('All ports')],
-	['common_tcpport', _('Common ports (bypass P2P traffic)'), uci.get('fchomo', 'routing', 'common_tcpport') || '20-21,22,53,80,110,143,443,465,853,873,993,995,5222,8080,8443,9418'],
-	['common_udpport', _('Common ports (bypass P2P traffic)'), uci.get('fchomo', 'routing', 'common_udpport') || '20-21,22,53,80,110,143,443,853,993,995,8080,8443,9418'],
-	['stun_port', _('STUN ports'), uci.get('fchomo', 'routing', 'stun_port') || '3478,19302'],
-	['turn_port', _('TURN ports'), uci.get('fchomo', 'routing', 'turn_port') || '5349'],
-	['steam_client_port', _('Steam Client ports'), uci.get('fchomo', 'routing', 'steam_client_port') || '27015-27050'],
-	['steam_p2p_udpport', _('Steam P2P ports'), uci.get('fchomo', 'routing', 'steam_p2p_udpport') || '3478,4379,4380,27000-27100'],
+	['common_tcpport', _('Common ports (bypass P2P traffic)'), uci.get('fchomo', 'config', 'common_tcpport') || '20-21,22,53,80,110,143,443,853,873,993,995,5222,8080,8443,9418'],
+	['common_udpport', _('Common ports (bypass P2P traffic)'), uci.get('fchomo', 'config', 'common_udpport') || '20-21,22,53,80,110,143,443,853,993,995,8080,8443,9418'],
+	['smtp_tcpport', _('%s ports').format(_('SMTP')), uci.get('fchomo', 'config', 'smtp_tcpport') || '465,587'],
+	['stun_port', _('%s ports').format(_('STUN')), uci.get('fchomo', 'config', 'stun_port') || '3478,19302'],
+	['turn_port', _('%s ports').format(_('TURN')), uci.get('fchomo', 'config', 'turn_port') || '5349'],
+	['google_fcm_port', _('%s ports').format(_('Google FCM')), uci.get('fchomo', 'config', 'google_fcm_port') || '443,5228-5230'],
+	['steam_client_port', _('%s ports').format(_('Steam Client')), uci.get('fchomo', 'config', 'steam_client_port') || '27015-27050'],
+	['steam_p2p_udpport', _('%s ports').format(_('Steam P2P')), uci.get('fchomo', 'config', 'steam_p2p_udpport') || '3478,4379,4380,27000-27100'],
 ];
 
 const rules_type = [
@@ -228,8 +273,10 @@ const rules_type = [
 
 	['PROCESS-PATH'],
 	['PROCESS-PATH-REGEX'],
+	['PROCESS-PATH-WILDCARD'],
 	['PROCESS-NAME'],
 	['PROCESS-NAME-REGEX'],
+	['PROCESS-NAME-WILDCARD'],
 	['UID'],
 
 	['NETWORK'],
@@ -238,6 +285,17 @@ const rules_type = [
 	['RULE-SET'],
 
 	['MATCH']
+];
+
+const rules_type_allowparms = [
+	// params only available for types other than
+	// https://github.com/muink/mihomo/blob/300eb8b12a75504c4bd4a6037d2f6503fd3b347f/rules/parser.go#L12
+	'GEOIP',
+	'IP-ASN',
+	'IP-CIDR',
+	'IP-CIDR6',
+	'IP-SUFFIX',
+	'RULE-SET',
 ];
 
 const rules_logical_type = [
@@ -252,6 +310,19 @@ const rules_logical_payload_count = {
 	'OR': { low: 2, high: undefined },
 	'NOT': { low: 1, high: 1 },
 	//'SUB-RULE': 0,
+};
+
+const aead_cipher_length = {
+	/* AEAD */
+	'aes-128-gcm': 0,
+	'aes-192-gcm': 0,
+	'aes-256-gcm': 0,
+	'chacha20-ietf-poly1305': 0,
+	'xchacha20-ietf-poly1305': 0,
+	/* AEAD 2022 */
+	'2022-blake3-aes-128-gcm': 16,
+	'2022-blake3-aes-256-gcm': 32,
+	'2022-blake3-chacha20-poly1305': 32
 };
 
 const shadowsocks_cipher_methods = [
@@ -269,18 +340,11 @@ const shadowsocks_cipher_methods = [
 	['2022-blake3-chacha20-poly1305', _('2022-blake3-chacha20-poly1305')]
 ];
 
-const shadowsocks_cipher_length = {
-	/* AEAD */
-	'aes-128-gcm': 0,
-	'aes-192-gcm': 0,
-	'aes-256-gcm': 0,
-	'chacha20-ietf-poly1305': 0,
-	'xchacha20-ietf-poly1305': 0,
-	/* AEAD 2022 */
-	'2022-blake3-aes-128-gcm': 16,
-	'2022-blake3-aes-256-gcm': 32,
-	'2022-blake3-chacha20-poly1305': 32
-};
+const sudoku_cipher_methods = [
+	['none', _('none')],
+	['aes-128-gcm', _('aes-128-gcm')],
+	['chacha20-ietf-poly1305', _('chacha20-ietf-poly1305')]
+];
 
 const trojan_cipher_methods = [
 	['aes-128-gcm', _('aes-128-gcm')],
@@ -288,17 +352,57 @@ const trojan_cipher_methods = [
 	['chacha20-ietf-poly1305', _('chacha20-ietf-poly1305')]
 ];
 
+const tls_client_auth_types = [
+	['', _('none')],
+	['request', _('Request')],
+	['require-any', _('Require any')],
+	['verify-if-given', _('Verify if given')],
+	['require-and-verify', _('Require and verify')]
+];
+
 const tls_client_fingerprints = [
+	['', _('Keep default')],
 	['chrome'],
 	['firefox'],
 	['safari'],
-	['iOS'],
+	['ios'],
 	['android'],
 	['edge'],
 	['360'],
 	['qq'],
-	['random']
+	['random', _('Random')]
 ];
+
+const vless_encryption = {
+	methods: [
+		['mlkem768x25519plus', _('mlkem768x25519plus')]
+	],
+	xormodes: [
+		['native', 'native', _('Native appearance')],
+		['xorpub', 'xorpub', _('Eliminate encryption header characteristics')],
+		['random', 'random', _('Randomized traffic characteristics')]
+	],
+	tickets: [
+		['600s', '600s', _('Send random ticket of 300s-600s duration for client 0-RTT reuse.')],
+		['300-600s', '300-600s', _('Send random ticket of 300s-600s duration for client 0-RTT reuse.')],
+		['0s', '0s', _('1-RTT only.')]
+	],
+	rtts: [
+		['0rtt', _('0-RTT reuse.') +' '+ _('Requires server support.')],
+		['1rtt', _('1-RTT only.')]
+	],
+	paddings: [
+		['100-111-1111', '100-111-1111: ' + _('After the 1-RTT client/server hello, padding randomly 111-1111 bytes with 100% probability.')],
+		['75-0-111', '75-0-111: ' + _('Wait a random 0-111 milliseconds with 75% probability.')],
+		['50-0-3333', '50-0-3333: ' + _('Send padding randomly 0-3333 bytes with 50% probability.')]
+	],
+	keypairs: {
+		types: [
+			['vless-x25519', _('vless-x25519')],
+			['vless-mlkem768', _('vless-mlkem768')]
+		]
+	}
+};
 
 const vless_flow = [
 	['', _('None')],
@@ -308,11 +412,11 @@ const vless_flow = [
 /* Prototype */
 const CBIGridSection = form.GridSection.extend({
 	modaltitle(/* ... */) {
-		return loadModalTitle.call(this, ...this.hm_modaltitle || [null,null], ...arguments)
+		return loadModalTitle.call(this, ...this.hm_modaltitle || [null,null], ...arguments);
 	},
 
 	sectiontitle(/* ... */) {
-		return loadDefaultLabel.call(this, ...arguments);
+		return loadDefaultLabel.apply(this, arguments);
 	},
 
 	renderSectionAdd(extra_class) {
@@ -321,6 +425,8 @@ const CBIGridSection = form.GridSection.extend({
 
 		let el = form.GridSection.prototype.renderSectionAdd.call(this, extra_class),
 			nameEl = el.querySelector('.cbi-section-create-name');
+
+		nameEl.placeholder = _('Specify a ID');
 
 		ui.addValidator(nameEl, 'uciname', true, (v) => {
 			let button = el.querySelector('.cbi-section-create > .cbi-button-add');
@@ -338,7 +444,7 @@ const CBIGridSection = form.GridSection.extend({
 				button.disabled = true;
 				return _('Expecting: %s').format(_('unique identifier'));
 			} else {
-				button.disabled = null;
+				button.removeAttribute('disabled');
 				return true;
 			}
 		}, 'blur', 'keyup');
@@ -353,7 +459,7 @@ const CBIGridSection = form.GridSection.extend({
 	}
 });
 
-const CBIDynamicList = form.DynamicList.extend({
+const CBIDynamicList = form.DynamicList.extend({ // @less_25_12
 	__name__: 'CBI.DynamicList',
 
 	renderWidget(section_id, option_index, cfgvalue) {
@@ -376,6 +482,18 @@ const CBIDynamicList = form.DynamicList.extend({
 	}
 });
 
+const CBIStaticList = form.DynamicList.extend({
+	__name__: 'CBI.StaticList',
+
+	renderWidget(/* ... */) {
+		let El = (less_25_12 ? CBIDynamicList : form.DynamicList).prototype.renderWidget.apply(this, arguments); // @less_25_12
+
+		El.querySelector('.add-item ul > li[data-value="-"]')?.remove();
+
+		return El;
+	}
+});
+
 const CBIListValue = form.ListValue.extend({
 	renderWidget(/* ... */) {
 		let frameEl = form.ListValue.prototype.renderWidget.apply(this, arguments);
@@ -386,22 +504,16 @@ const CBIListValue = form.ListValue.extend({
 	}
 });
 
+const CBIRichValue = form.Value.extend({
+	__name__: 'CBI.RichValue',
+
+	value: form.RichListValue.prototype.value
+});
+
 const CBIRichMultiValue = form.MultiValue.extend({
 	__name__: 'CBI.RichMultiValue',
 
-	value: (form.RichListValue || form.MultiValue).prototype.value // less_24_10
-});
-
-const CBIStaticList = form.DynamicList.extend({
-	__name__: 'CBI.StaticList',
-
-	renderWidget(/* ... */) {
-		let El = ((less_24_10 || !pr7558_merged) ? CBIDynamicList : form.DynamicList).prototype.renderWidget.apply(this, arguments);
-
-		El.querySelector('.add-item ul > li[data-value="-"]')?.remove();
-
-		return El;
-	}
+	value: form.RichListValue.prototype.value
 });
 
 const CBITextValue = form.TextValue.extend({
@@ -449,6 +561,80 @@ const CBIGenText = CBITextValue.extend({
 	}
 });
 
+const CBICopyValue = form.Value.extend({
+	__name__: 'CBI.CopyValue',
+
+	readonly: true,
+
+	renderWidget(section_id, option_index, cfgvalue) {
+		let node = form.Value.prototype.renderWidget.call(this, section_id, option_index, cfgvalue);
+
+		node.classList.add('control-group');
+
+		node.appendChild(E('button', {
+			class: 'cbi-button cbi-button-add',
+			click: ui.createHandlerFn(this, async (section_id) => {
+				try {
+					await navigator.clipboard.writeText(this.formvalue(section_id));
+					console.log('Content copied to clipboard!');
+				} catch (e) {
+					console.error('Failed to copy: ', e);
+				}
+				/* Deprecated
+				let inputEl = document.getElementById(this.cbid(section_id)).querySelector('input');
+				inputEl.select();
+				document.execCommand("copy");
+				inputEl.blur();
+				*/
+				return alert(_('Content copied to clipboard!'));
+			}, section_id)
+		}, [ _('Copy') ]));
+
+		return node;
+	}
+});
+
+const CBIparseYaml = baseclass.extend(/** @lends hm.parseYaml.prototype */ {
+	__init__(field, name, cfg) {
+		if (isEmpty(cfg))
+			return null;
+
+		if (typeof cfg === 'object') {
+			this.id = this.calcID(field, name ?? cfg.name);
+			this.label = '%s %s'.format(name ?? cfg.name, _('(Imported)'));
+		} else {
+			this.id = this.calcID(field, name ?? cfg);
+			this.label = '%s %s'.format(name ?? cfg, _('(Imported)'));
+		}
+
+		this.field = field;
+		this.name = name;
+		this.cfg = this.key_mapping(cfg);
+	},
+
+	key_mapping(cfg) {
+		return cfg;
+	},
+
+	calcID(field, name) {
+		return calcStringMD5(String.format('%s:%s', field, name));
+	},
+
+	bool2str(value) {
+		if (typeof value !== 'boolean')
+			return null;
+		return value ? '1' : '0';
+	},
+
+	jq(obj, path) {
+		return path.split('.').reduce((acc, cur) => acc && acc[cur], obj);
+	},
+
+	output() {
+		return this.cfg;
+	}
+});
+
 const CBIHandleImport = baseclass.extend(/** @lends hm.HandleImport.prototype */ {
 	__init__(map, section, title, description) {
 		this.map = map;
@@ -457,10 +643,7 @@ const CBIHandleImport = baseclass.extend(/** @lends hm.HandleImport.prototype */
 		this.description = description ?? '';
 		this.placeholder = '';
 		this.appendcommand = '';
-	},
-
-	calcID(field, name) {
-		return calcStringMD5(String.format('%s:%s', field, name));
+		this.overridecommand = '';
 	},
 
 	handleFn(textarea) {
@@ -468,7 +651,7 @@ const CBIHandleImport = baseclass.extend(/** @lends hm.HandleImport.prototype */
 		const field = this.section.hm_field;
 
 		let content = textarea.getValue().trim();
-		let command = `.["${field}"]` + this.appendcommand;
+		let command = this.overridecommand || `.["${field}"]` + this.appendcommand;
 		if (['proxy-providers', 'rule-providers'].includes(field))
 			content = content.replace(/(\s*payload:)/g, "$1 |-") /* payload to text */
 
@@ -480,7 +663,7 @@ const CBIHandleImport = baseclass.extend(/** @lends hm.HandleImport.prototype */
 			if (!isEmpty(res) && typeof res === 'object') {
 				if (Array.isArray(res))
 					res.forEach((cfg) => {
-						let config = this.parseYaml(field, null, cfg);
+						let config = new this.parseYaml(field, null, cfg).output();
 						//console.info(JSON.stringify(config, null, 2));
 						if (config) {
 							this.write(config);
@@ -489,7 +672,7 @@ const CBIHandleImport = baseclass.extend(/** @lends hm.HandleImport.prototype */
 					})
 				else
 					for (let name in res) {
-						let config = this.parseYaml(field, name, res[name]);
+						let config = new this.parseYaml(field, name, res[name]).output();
 						//console.info(JSON.stringify(config, null, 2));
 						if (config) {
 							this.write(config);
@@ -508,7 +691,7 @@ const CBIHandleImport = baseclass.extend(/** @lends hm.HandleImport.prototype */
 						E('br'),
 						//type_file_count ? _("%s rule-set of type '%s' need to be filled in manually.")
 						//	.format(type_file_count, 'file') : ''
-					]));
+					]), 'info');
 			}
 
 			if (imported_count)
@@ -518,17 +701,7 @@ const CBIHandleImport = baseclass.extend(/** @lends hm.HandleImport.prototype */
 		});
 	},
 
-	parseYaml(field, name, cfg) {
-		if (isEmpty(cfg))
-			return null;
-
-		if (typeof cfg === 'object') {
-			cfg.hm_id = this.calcID(field, name ?? cfg.name);
-			cfg.hm_label = '%s %s'.format(name ?? cfg.name, _('(Imported)'));
-		}
-
-		return cfg;
-	},
+	parseYaml: CBIparseYaml,
 
 	render() {
 		const textarea = new ui.Textarea('', {
@@ -573,10 +746,10 @@ const CBIHandleImport = baseclass.extend(/** @lends hm.HandleImport.prototype */
 	}
 });
 
-const UIDynamicList = ui.DynamicList.extend({
+const UIDynamicList = ui.DynamicList.extend({ // @less_25_12
 	addItem(dl, value, text, flash) {
 		if (this.options.allowduplicates) {
-			const new_item = E('div', { class: flash ? 'item flash' : 'item', tabindex: 0, draggable: !less_24_10 }, [
+			const new_item = E('div', { class: flash ? 'item flash' : 'item', tabindex: 0, draggable: true }, [
 				E('span', {}, [ text ?? value ]),
 				E('input', {
 					type: 'hidden',
@@ -601,13 +774,7 @@ const UIDynamicList = ui.DynamicList.extend({
 });
 
 /* Method */
-function bool2str(value) {
-	if (typeof value !== 'boolean')
-		return null;
-	return value ? '1' : '0';
-}
-
-// thanks to homeproxy
+/* thanks to homeproxy */
 function calcStringMD5(e) {
 	/* Thanks to https://stackoverflow.com/a/41602636 */
 	let h = (a, b) => {
@@ -682,20 +849,95 @@ function calcStringMD5(e) {
 	return (p(a) + p(b) + p(c) + p(d)).toLowerCase();
 }
 
-// thanks to homeproxy
-function decodeBase64Str(str) {
+/* Thanks to luci-app-ssr-plus */
+function base64Prefmt(str) {
+	str = str.replace(/-/g, '+').replace(/_/g, '/');
+	const padding = (4 - (str.length % 4)) % 4;
+	if (padding)
+		str += '='.repeat(padding);
+
+	return str;
+}
+
+/* thanks to homeproxy */
+/**
+ * General Base64 Decoding
+ * @param {string} str - Base64 string
+ * @param {boolean} asText - true: decoded string (UTF-8), false: Uint8Array
+ * @returns {string|Uint8Array}
+ */
+function decodeBase64(str, asText = false) {
 	if (!str)
 		return null;
 
-	/* Thanks to luci-app-ssr-plus */
-	str = str.replace(/-/g, '+').replace(/_/g, '/');
-	let padding = (4 - (str.length % 4)) % 4;
-	if (padding)
-		str = str + Array(padding + 1).join('=');
+	str = base64Prefmt(str);
 
-	return decodeURIComponent(Array.prototype.map.call(atob(str), (c) =>
-		'%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
-	).join(''));
+	if (asText)
+		return decodeURIComponent(Array.prototype.map.call(atob(str), c =>
+			'%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
+		).join(''));
+
+	return Uint8Array.fromBase64(str); // OR Uint8Array.from(atob(str), c => c.charCodeAt(0));
+}
+
+/**
+ * General Base64 Encoding
+ * @param {string|Array|ArrayBuffer|Uint8Array} input - String or binary data to be encoded
+ * @returns {string}
+ */
+function encodeBase64(input) {
+	if (isEmpty(input))
+		return null;
+
+	if (typeof input === 'string') {
+		const rawStr = encodeURIComponent(input).replace(/%([0-9A-F]{2})/g, (match, p1) =>
+			String.fromCharCode(parseInt(p1, 16))
+		);
+		return btoa(rawStr);
+	}
+
+	const buf = (input instanceof ArrayBuffer) ? new Uint8Array(input) : input;
+	return new Uint8Array(buf).toBase64(); // OR btoa(String.fromCharCode.apply(null, buf));
+}
+
+// thanks to https://github.com/scottschiller/ArmorAlley/blob/master/src/floppy/index-floppy.html
+/**
+ * Unzip Gzip data
+ * @param {string|Array|ArrayBuffer|Uint8Array} input - Input data (Base64 string or binary object)
+ * @param {boolean} asText - Return a string? (true: text, false: arrayBuffer)
+ * @returns {Promise<string|Uint8Array>}
+ */
+async function decompressGzip(input, asText = false) {
+	if (isEmpty(input))
+		return null;
+
+	const ds = new DecompressionStream('gzip');
+
+	let blob_in;
+	if (typeof input === 'string') {
+		if (input.match(/^H4sI/)) { // Gzip magic + Deflate
+			const response = await window.fetch('data:application/octet-stream;base64,' + base64Prefmt(input));
+			blob_in = await response.blob();
+		} else
+			throw new Error('Not a valid base64 encoded gzip');
+	} else {
+		// The `input` should be `Array` or `ArrayBuffer` or `Uint8Array`.
+		input = new Uint8Array(input);
+		if (input.subarray(0, 3).join(',') === [0x1f, 0x8b, 0x08].join(',')) // Gzip magic + Deflate
+			blob_in = new Blob([input]);
+		else
+			throw new Error('Not a valid gzip');
+	}
+
+	const decodedStream = blob_in.stream().pipeThrough(ds);
+	const blob_out = await new window.Response(decodedStream).blob();
+
+	if (asText)
+		return await blob_out.text();
+	else {
+		const buf = await blob_out.arrayBuffer();
+		return new Uint8Array(buf);
+	}
 }
 
 function generateRand(type, length) {
@@ -721,8 +963,26 @@ function generateRand(type, length) {
 	};
 }
 
-function getValue(obj, path) {
-	return path.split('.').reduce((acc, cur) => acc && acc[cur], obj);
+function shuffle(StrORArr) {
+	let arr;
+
+	if (typeof StrORArr === 'string')
+		arr = StrORArr.split('');
+	else if (Array.isArray(StrORArr))
+		arr = StrORArr;
+	else
+		throw new Error(`String or Array only`);
+
+	for (let i = arr.length - 1; i > 0; i--) {         // Traverse the array from back to front
+		const j = Math.floor(Math.random() * (i + 1)); // Generate a random index between 0 and i
+
+		[arr[i], arr[j]] = [arr[j], arr[i]];           // Swap positions
+	}
+
+	if (typeof StrORArr === 'string')
+		return arr.join('');
+	else if (Array.isArray(StrORArr))
+		return arr;
 }
 
 function json2yaml(object, command) {
@@ -748,7 +1008,8 @@ function yaml2json(content, command) {
 
 function isEmpty(res) {
 	if (res == null) return true;                                                // null, undefined
-	if (typeof res === 'string' || Array.isArray(res)) return res.length === 0;  // empty String/Array
+	if (typeof res.length === 'number') return res.length === 0;                 // empty String/Array/TypedArray
+	if (res instanceof ArrayBuffer) return res.byteLength === 0;                 // empty ArrayBuffer
 	if (typeof res === 'object') {
 		if (res instanceof Map || res instanceof Set) return res.size === 0;     // empty Map/Set
 		return Object.keys(res).length === 0;                                    // empty Object
@@ -772,6 +1033,15 @@ function removeBlankAttrs(res) {
 		return obj;
 	}
 	return res;
+}
+
+function toUciname(str) {
+	if (isEmpty(str))
+		return null;
+
+	const unuciname = new RegExp(/[^a-zA-Z0-9_]+/, "g");
+
+	return str.replace(/[\s\.-]/g, '_').replace(unuciname, '');
 }
 
 function getFeatures() {
@@ -814,7 +1084,7 @@ function getClashAPI(instance) {
 	return L.resolveDefault(callGetClashAPI(instance), {});
 }
 
-// thanks to homeproxy
+/* thanks to homeproxy */
 function loadDefaultLabel(section_id) {
 	const label = uci.get(this.config, section_id, 'label');
 	if (label) {
@@ -825,7 +1095,7 @@ function loadDefaultLabel(section_id) {
 	}
 }
 
-// thanks to homeproxy
+/* thanks to homeproxy */
 function loadModalTitle(title, addtitle, section_id) {
 	const label = uci.get(this.config, section_id, 'label');
 	return label ? title + ' » ' + label : addtitle;
@@ -968,15 +1238,15 @@ function renderResDownload(section_id) {
 		E('button', {
 			class: 'cbi-button cbi-button-add',
 			disabled: (type !== 'http') || null,
-			click: ui.createHandlerFn(this, function(section_type, section_id, type, url, header) {
+			click: ui.createHandlerFn(this, (section_type, section_id, type, url, header) => {
 				if (type === 'http') {
 					return downloadFile(section_type, section_id, url, header).then((res) => {
-						ui.addNotification(null, E('p', _('Download successful.')));
+						ui.addNotification(null, E('p', _('Download successful.')), 'info');
 					}).catch((e) => {
-						ui.addNotification(null, E('p', _('Download failed: %s').format(e)));
+						ui.addNotification(null, E('p', _('Download failed: %s').format(e)), 'error');
 					});
 				} else
-					return ui.addNotification(null, E('p', _('Unable to download unsupported type: %s').format(type)));
+					return ui.addNotification(null, E('p', _('Unable to download unsupported type: %s').format(type)), 'error');
 			}, section_type, section_id, type, url, header)
 		}, [ _('🡇') ]) //🗘
 	]);
@@ -999,18 +1269,21 @@ function handleGenKey(option) {
 	});
 
 	if (typeof option === 'object') {
-		return callMihomoGenerator(option.type, option.params).then((ret) => {
-			if (ret.result)
-				for (let key in option.result)
-					widget(option.result[key]).value = ret.result[key] || '';
+		return callMihomoGenerator(option.type, option.params).then((res) => {
+			if (res.result)
+				option.callback.call(this, res.result).forEach(([k, v]) => {
+					widget(k).value = v ?? '';
+				});
 			else
-				ui.addNotification(null, E('p', _('Failed to generate %s, error: %s.').format(type, ret.error)));
+				ui.addNotification(null, E('p', _('Failed to generate %s, error: %s.').format(type, res.error)), 'error');
 		});
 	} else {
 		let password, required_method;
 
 		if (option === 'uuid' || option.match(/_uuid/))
 			required_method = 'uuid';
+		else if (option.match(/sudoku_custom_table/))
+			required_method = 'sudoku_custom_table';
 		else if (type === 'shadowsocks' && option === 'shadowsocks_password')
 			required_method = this.section.getOption('shadowsocks_chipher')?.formvalue(section_id);
 		else if (type === 'trojan' && option === 'trojan_ss_password')
@@ -1025,16 +1298,20 @@ function handleGenKey(option) {
 			case 'uuid':
 				password = generateRand('uuid');
 				break;
+			/* SUDOKU CUSTOM TABLE */
+			case 'sudoku_custom_table':
+				password = shuffle('xxppvvvv');
+				break;
 			/* DEFAULT */
 			default:
-				password = generateRand('hex', 16);
+				password = generateRand('hex', 32/2);
 				break;
 		}
 		/* AEAD */
 		(function(length) {
 			if (length && length > 0)
 				password = generateRand('base64', length);
-		}(shadowsocks_cipher_length[required_method]));
+		}(aead_cipher_length[required_method]));
 
 		return widget(option).value = password;
 	}
@@ -1045,7 +1322,7 @@ function handleReload(instance, ev, section_id) {
 	return fs.exec('/etc/init.d/fchomo', ['reload', instance])
 		.then((res) => { /* return window.location = window.location.href.split('#')[0] */ })
 		.catch((e) => {
-			ui.addNotification(null, E('p', _('Failed to execute "/etc/init.d/fchomo %s %s" reason: %s').format('reload', instance, e)))
+			ui.addNotification(null, E('p', _('Failed to execute "/etc/init.d/fchomo %s %s" reason: %s').format('reload', instance, e)), 'error')
 		})
 }
 
@@ -1068,7 +1345,7 @@ function handleRemoveIdles() {
 					E('button', {
 						class: 'cbi-button cbi-button-negative important',
 						id: 'rmidles.' + filename + '.button',
-						click: ui.createHandlerFn(this, function(filename) {
+						click: ui.createHandlerFn(this, (filename) => {
 							return removeFile(section_type, filename).then((res) => {
 								let node = document.getElementById('rmidles.' + filename + '.label');
 								node.innerHTML = '<s>%s</s>'.format(node.innerHTML);
@@ -1126,7 +1403,7 @@ function validateAuthPassword(section_id, value) {
 }
 
 function validateCommonPort(section_id, value) {
-	// thanks to homeproxy
+	/* thanks to homeproxy */
 	let stubValidator = {
 		factory: validation,
 		apply(type, value, args) {
@@ -1164,49 +1441,6 @@ function validateCommonPort(section_id, value) {
 	return true;
 }
 
-function validateJson(section_id, value) {
-	if (!value)
-		return true;
-
-	try {
-		let obj = JSON.parse(value.trim());
-		if (!obj)
-			return _('Expecting: %s').format(_('valid JSON format'));
-	}
-	catch(e) {
-		return _('Expecting: %s').format(_('valid JSON format'));
-	}
-
-	return true;
-}
-
-function validateBase64Key(length, section_id, value) {
-	/* Thanks to luci-proto-wireguard */
-	if (value)
-		if (value.length !== length || !value.match(/^(?:[A-Za-z0-9+\/]{4})*(?:[A-Za-z0-9+\/]{2}==|[A-Za-z0-9+\/]{3}=)?$/) || value[length-1] !== '=')
-			return _('Expecting: %s').format(_('valid base64 key with %d characters').format(length));
-
-	return true;
-}
-
-function validateShadowsocksPassword(encmode, section_id, value) {
-	let length = shadowsocks_cipher_length[encmode];
-	if (typeof length !== 'undefined') {
-		length = Math.ceil(length/3)*4;
-		if (encmode.match(/^2022-/)) {
-			return validateBase64Key(length, section_id, value);
-		} else {
-			if (length === 0 && !value)
-				return _('Expecting: %s').format(_('non-empty value'));
-			if (length !== 0 && value.length !== length)
-				return _('Expecting: %s').format(_('valid key length with %d characters').format(length));
-		}
-	} else
-		return true;
-
-	return true;
-}
-
 function validateBytesize(section_id, value) {
 	if (!value)
 		return true;
@@ -1226,18 +1460,27 @@ function validateTimeDuration(section_id, value) {
 	return true;
 }
 
-function validateUniqueValue(section_id, value) {
+function validateJson(section_id, value) {
 	if (!value)
-		return _('Expecting: %s').format(_('non-empty value'));
+		return true;
 
-	let duplicate = false;
-	uci.sections(this.config, this.section.sectiontype, (res) => {
-		if (res['.name'] !== section_id)
-			if (res[this.option] === value)
-				duplicate = true;
-	});
-	if (duplicate)
-		return _('Expecting: %s').format(_('unique value'));
+	try {
+		let obj = JSON.parse(value.trim());
+		if (!obj)
+			return _('Expecting: %s').format(_('valid JSON format'));
+	}
+	catch(e) {
+		return _('Expecting: %s').format(_('valid JSON format'));
+	}
+
+	return true;
+}
+
+function validateUUID(section_id, value) {
+	if (!value)
+		return true;
+	else if (value.match('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$') === null)
+		return _('Expecting: %s').format(_('valid uuid'));
 
 	return true;
 }
@@ -1258,11 +1501,93 @@ function validateUrl(section_id, value) {
 	return true;
 }
 
-function validateUUID(section_id, value) {
+function validateBase64Key(length, section_id, value) {
+	/* Thanks to luci-proto-wireguard */
+	if (value)
+		if (value.length !== length || !value.match(/^(?:[A-Za-z0-9+\/]{4})*(?:[A-Za-z0-9+\/]{2}==|[A-Za-z0-9+\/]{3}=)?$/) || value[length-1] !== '=')
+			return _('Expecting: %s').format(_('valid base64 key with %d characters').format(length));
+
+	return true;
+}
+
+function validateMTLSClientAuth(type_option, section_id, value) {
+	// If `client-auth-type` is set to "verify-if-given" or "require-and-verify", `client-auth-cert` must not be empty.
+	const auth_type = this.section.getOption(type_option).formvalue(section_id);
+					//this.section.getUIElement('tls_client_auth_type').getValue();
+	if (!value && ["verify-if-given", "require-and-verify"].includes(auth_type))
+		return _('Expecting: %s').format(_('non-empty value'));
+
+	return true;
+}
+
+function validatePresetIDs(disoption_list, section_id) {
+	let node;
+	let hm_prefmt = glossary[this.section.sectiontype].prefmt;
+	let preset_ids = [
+		'fchomo_direct_list',
+		'fchomo_proxy_list',
+		'fchomo_china_list',
+		'fchomo_gfw_list'
+	];
+
+	if (preset_ids.map((v) => hm_prefmt.format(v)).includes(section_id)) {
+		disoption_list.forEach(([typ, opt]) => {
+			node = this.section.getUIElement(section_id, opt)?.node;
+			(typ ? node?.querySelector(typ) : node)?.setAttribute(typ === 'textarea' ? 'readOnly' : 'disabled', '');
+		});
+
+		this.map.findElement('id', 'cbi-fchomo-' + section_id)?.lastChild.querySelector('.cbi-button-remove')?.remove();
+	}
+
+	return true;
+}
+
+function validateShadowsocksPassword(encmode, section_id, value) {
+	let length = aead_cipher_length[encmode];
+	if (typeof length !== 'undefined') {
+		length = Math.ceil(length/3)*4;
+		if (encmode.match(/^2022-/)) {
+			return validateBase64Key.call(this, length, section_id, value);
+		} else {
+			if (length === 0 && !value)
+				return _('Expecting: %s').format(_('non-empty value'));
+			if (length !== 0 && value.length !== length)
+				return _('Expecting: %s').format(_('valid key length with %d characters').format(length));
+		}
+	} else
+		return true;
+
+	return true;
+}
+
+function validateSudokuCustomTable(section_id, value) {
 	if (!value)
 		return true;
-	else if (value.match('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$') === null)
-		return _('Expecting: %s').format(_('valid uuid'));
+
+	if (value.length !== 8)
+		return _('Expecting: %s').format(_('valid format: 2x, 2p, 4v'));
+
+	const counts = {};
+	for (const c of value)
+		counts[c] = (counts[c] || 0) + 1;
+	if (!(counts.x === 2 && counts.p === 2 && counts.v === 4))
+		return _('Expecting: %s').format(_('valid format: 2x, 2p, 4v'));
+
+	return true;
+}
+
+function validateUniqueValue(section_id, value) {
+	if (!value)
+		return _('Expecting: %s').format(_('non-empty value'));
+
+	let duplicate = false;
+	uci.sections(this.config, this.section.sectiontype, (res) => {
+		if (res['.name'] !== section_id)
+			if (res[this.option] === value)
+				duplicate = true;
+	});
+	if (duplicate)
+		return _('Expecting: %s').format(_('unique value'));
 
 	return true;
 }
@@ -1347,7 +1672,7 @@ function removeFile(type, filename) {
 	});
 }
 
-// thanks to homeproxy
+/* thanks to homeproxy */
 function uploadCertificate(type, filename, ev) {
 	const callWriteCertificate = rpc.declare({
 		object: 'luci.fchomo',
@@ -1360,12 +1685,12 @@ function uploadCertificate(type, filename, ev) {
 	.then(L.bind((btn, res) => {
 		return L.resolveDefault(callWriteCertificate(filename), {}).then((ret) => {
 			if (ret.result === true)
-				ui.addNotification(null, E('p', _('Your %s was successfully uploaded. Size: %sB.').format(type, res.size)));
+				ui.addNotification(null, E('p', _('Your %s was successfully uploaded. Size: %sB.').format(type, res.size)), 'info');
 			else
-				ui.addNotification(null, E('p', _('Failed to upload %s, error: %s.').format(type, ret.error)));
+				ui.addNotification(null, E('p', _('Failed to upload %s, error: %s.').format(type, ret.error)), 'error');
 		});
 	}, this, ev.target))
-	.catch((e) => { ui.addNotification(null, E('p', e.message)) });
+	.catch((e) => { ui.addNotification(null, E('p', e.message), 'error') });
 }
 function uploadInitialPack(ev, section_id) {
 	const callWriteInitialPack = rpc.declare({
@@ -1378,13 +1703,13 @@ function uploadInitialPack(ev, section_id) {
 	.then(L.bind((btn, res) => {
 		return L.resolveDefault(callWriteInitialPack(), {}).then((ret) => {
 			if (ret.result === true) {
-				ui.addNotification(null, E('p', _('Successfully uploaded.')));
+				ui.addNotification(null, E('p', _('Successfully uploaded.')), 'info');
 				return window.location = window.location.href.split('#')[0];
 			} else
-				ui.addNotification(null, E('p', _('Failed to upload, error: %s.').format(ret.error)));
+				ui.addNotification(null, E('p', _('Failed to upload, error: %s.').format(ret.error)), 'error');
 		});
 	}, this, ev.target))
-	.catch((e) => { ui.addNotification(null, E('p', e.message)) });
+	.catch((e) => { ui.addNotification(null, E('p', e.message), 'error') });
 }
 
 return baseclass.extend({
@@ -1392,13 +1717,16 @@ return baseclass.extend({
 	rulesetdoc,
 	sharkaudio,
 	sharktaikogif,
-	less_24_10,
-	pr7558_merged,
+	less_25_12,
+	HM_DIR,
 	monospacefonts,
 	checkurls,
+	congestion_controller,
+	bbr_profiles,
 	stunserver,
 	dashrepos,
 	dashrepos_urlparams,
+	log_levels,
 	glossary,
 	health_checkurls,
 	inbound_type,
@@ -1409,38 +1737,48 @@ return baseclass.extend({
 	proxy_group_type,
 	routing_port_type,
 	rules_type,
+	rules_type_allowparms,
 	rules_logical_type,
 	rules_logical_payload_count,
+	aead_cipher_length,
 	shadowsocks_cipher_methods,
-	shadowsocks_cipher_length,
+	sudoku_cipher_methods,
 	trojan_cipher_methods,
+	tls_client_auth_types,
 	tls_client_fingerprints,
+	vless_encryption,
 	vless_flow,
 
 	/* Prototype */
 	GridSection: CBIGridSection,
 	DynamicList: CBIDynamicList,
-	ListValue: CBIListValue,
-	RichMultiValue: CBIRichMultiValue,
 	StaticList: CBIStaticList,
+	ListValue: CBIListValue,
+	RichValue: CBIRichValue,
+	RichMultiValue: CBIRichMultiValue,
 	TextValue: CBITextValue,
 	GenValue: CBIGenValue,
 	GenText: CBIGenText,
+	CopyValue: CBICopyValue,
+	parseYaml: CBIparseYaml,
 	HandleImport: CBIHandleImport,
 
 	/* Method */
-	bool2str,
 	calcStringMD5,
-	decodeBase64Str,
+	decodeBase64,
+	encodeBase64,
+	decompressGzip,
 	generateRand,
-	getValue,
+	shuffle,
 	json2yaml,
 	yaml2json,
 	isEmpty,
 	removeBlankAttrs,
+	toUciname,
 	getFeatures,
 	getServiceStatus,
 	getClashAPI,
+	// load
 	loadDefaultLabel,
 	loadModalTitle,
 	loadProxyGroupLabel,
@@ -1448,6 +1786,7 @@ return baseclass.extend({
 	loadProviderLabel,
 	loadRulesetLabel,
 	loadSubRuleGroup,
+	// render
 	renderStatus,
 	updateStatus,
 	getDashURL,
@@ -1456,18 +1795,24 @@ return baseclass.extend({
 	handleReload,
 	handleRemoveIdles,
 	textvalue2Value,
+	// validate
 	validateAuth,
 	validateAuthUsername,
 	validateAuthPassword,
 	validateCommonPort,
-	validateJson,
-	validateBase64Key,
-	validateShadowsocksPassword,
 	validateBytesize,
 	validateTimeDuration,
-	validateUniqueValue,
-	validateUrl,
+	validateJson,
 	validateUUID,
+	validateUrl,
+	// validate with bind this
+	validateBase64Key,
+	validateMTLSClientAuth,
+	validatePresetIDs,
+	validateShadowsocksPassword,
+	validateSudokuCustomTable,
+	validateUniqueValue,
+	// file operations
 	lsDir,
 	readFile,
 	writeFile,
