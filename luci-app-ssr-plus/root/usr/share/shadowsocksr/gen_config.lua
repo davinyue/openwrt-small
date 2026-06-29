@@ -50,7 +50,33 @@ local b64encode = nixio.bin.b64encode
 local effective_node_local_port = tonumber(server.local_port) or tonumber(default_node_local_port) or 1234
 
 if server.type == "ss-rust" then
-    server.type = "ss"
+	server.type = "ss"
+end
+
+local function parse_realm_uri(uri)
+	if type(uri) ~= "string" then return nil end
+	-- realm[+http]://token@server/realm_id?query
+	local scheme, token, server_url, realm_id, query = trim(uri):match("^(realm%+http|realm)://([^@]+)@([^/]+)/([^?]*)%??(.*)$")
+	if not scheme or not token or not server_url or not realm_id then return nil end
+	realm_id = realm_id:gsub("/+$", "")
+	local address, port = server_url:match("^%[?([^%]]+)%]?:?(%d*)$")
+	port = tonumber(port) or (scheme == "realm+http" and 80 or 443)
+	local realm = {
+		scheme = scheme,
+		token = token,
+		server_url = server_url,
+		address = address,
+		port = port,
+		realm_id = realm_id
+	}
+	-- 解析 query 中的 stun=
+	local stun_servers
+	for value in (query or ""):gmatch("[?&]?[Ss][Tt][Uu][Nn]=([^&]+)") do
+		if not stun_servers then stun_servers = {} end
+		stun_servers[#stun_servers + 1] = value
+	end
+	realm.stun_servers = stun_servers
+	return realm
 end
 
 -- base64 解码
@@ -211,20 +237,33 @@ function wireguard()
 	-- 处理 reserved 字段，支持逗号分隔的数字或 Base64 编码
 	local reserved = nil
 	if server.reserved then
-		local bytes = {}
-		if not server.reserved:match("[^%d,]+") then
-			-- 纯数字和逗号，解析为数字列表
-			server.reserved:gsub("%d+", function(b)
-				bytes[#bytes + 1] = tonumber(b)
-			end)
-		else
-			-- Base64 编码的二进制数据
-			local result = base64Decode(server.reserved)
-			for i = 1, #result do
-				bytes[i] = result:byte(i)
+		local all_bytes = {}
+		local reserved_values = server.reserved
+
+		-- 确保是 table 类型
+		if type(reserved_values) ~= "table" then
+			reserved_values = {reserved_values}
+		end
+
+		for _, reserved_str in ipairs(reserved_values) do
+			if type(reserved_str) == "string" then
+				if not reserved_str:match("[^%d,]+") then
+					-- 数字和逗号格式
+					reserved_str:gsub("%d+", function(b)
+						all_bytes[#all_bytes + 1] = tonumber(b)
+					end)
+				else
+					-- Base64 格式
+					local result = base64Decode(reserved_str)
+					if result then
+						for i = 1, #result do
+							all_bytes[#all_bytes + 1] = result:byte(i)
+						end
+					end
+				end
 			end
 		end
-		reserved = #bytes > 0 and bytes or nil
+		reserved = #all_bytes > 0 and all_bytes or nil
 	end
 
 	outbound_settings = {
@@ -243,6 +282,13 @@ function wireguard()
 		reserved = reserved,
 		mtu = tonumber(server.mtu)
 	}
+	if server.finalmask and server.finalmask ~= "" then
+		local ok, fm = pcall(json.parse, base64Decode(server.finalmask))
+		if ok and type(fm) == "table" then
+			outbound_settings.streamSettings = outbound_settings.streamSettings or {}
+			outbound_settings.streamSettings.finalmask = fm
+		end
+	end
 end
 function xray_hysteria2()
 	outbound_settings = {
@@ -250,6 +296,15 @@ function xray_hysteria2()
 		address = server.server,
 		port = tonumber(server.server_port)
 	}
+
+	-- Realm 支持：使用 Realm 服务器地址覆盖默认地址
+	if server.v2ray_protocol == "hysteria2" and server.hysteria2_realms then
+		local realm = parse_realm_uri(server.hysteria2_realm_url)
+		if realm then
+			outbound_settings.address = realm.address
+			outbound_settings.port = realm.port
+		end
+	end
 end
 local outbound = {}
 function outbound:new(o)
@@ -382,22 +437,24 @@ end
 	-- 开启 socks 代理
 	-- 检查是否启用 socks 代理
 if proto and proto:find("tcp") and socks_port ~= "0" then
-    table.insert(Xray.inbounds, {
-        -- socks
-        protocol = "socks",
-        port = tonumber(socks_port),
+	local auth = (socks_server.socks5_auth and socks_server.socks5_auth ~= "noauth")
+		and {{
+			user = socks_server.socks5_user,
+			pass = socks_server.socks5_pass
+		}} or nil
+
+	table.insert(Xray.inbounds, {
+		-- socks
+		protocol = "socks",
+		port = tonumber(socks_port),
 		settings = {
 			auth = socks_server.socks5_auth or "noauth",
 			udp = true,
-			mixed = ((socks_server.socks5_mixed == '1') and true or false) or nil,
-			accounts = (socks_server.socks5_auth and socks_server.socks5_auth ~= "noauth") and {
-				{
-					user = socks_server.socks5_user,
-					pass = socks_server.socks5_pass
-				}
-			} or nil
-		} or nil
-    })
+			mixed = socks_server.socks5_mixed == "1" or nil,
+			accounts = (xray_version_val <= 260503) and auth or nil,
+			users = (xray_version_val > 260503) and auth or nil
+		}
+	})
 end
 
 -- 传出连接
@@ -569,7 +626,7 @@ Xray.outbounds = {
 				local finalmask = {}
 				local PT = server.v2ray_protocol
 				local TP = server.transport
-				if server.transport == "kcp" then
+				if TP == "kcp" then
 					local map = {none = "none", srtp = "header-srtp", utp = "header-utp", ["wechat-video"] = "header-wechat",
 						dtls = "header-dtls", wireguard = "header-wireguard", dns = "header-dns"}
 					local udp = {}
@@ -587,14 +644,34 @@ Xray.outbounds = {
 					udp[#udp+1] = c
 					finalmask.udp = udp
 				elseif PT == "hysteria2" then
+					local udp = {}
 					if (server.flag_obfs == "1" and (server.obfs_type and server.obfs_type ~= "")) then
-						finalmask.udp = {{
-							type = server.obfs_type,
+						local o = {
+							type = "salamander",
 							settings = server.salamander and {
-								password = server.salamander
+								password = server.salamander,
+								packetSize = server.obfs_type == "gecko" and "512-1200" or nil
 							} or nil
-						}}
+						}
+						udp[#udp+1] = o
 					end
+					if server.hysteria2_realms then
+						local realm = parse_realm_uri(server.hysteria2_realm_url)
+						local url, stun
+						if realm then
+							url = realm.scheme .. "://" .. realm.token .. "@" .. realm.server_url .. "/" .. realm.realm_id
+							stun = realm.stun_servers or server.hysteria2_realm_stun
+						end
+						local r = {
+							type = "realm",
+							settings = {
+								url = url,
+								stunServers = stun
+							}
+						}
+						udp[#udp+1] = r
+					end
+					finalmask.udp = udp
 					local up = tonumber(server.uplink_capacity) or 0
 					local down = tonumber(server.downlink_capacity) or 0
 					finalmask.quicParams = {
@@ -639,15 +716,56 @@ Xray.outbounds = {
 					local n_maxsplit = xray_fragment.fragment_maxSplit
 					--local domainstr = xray_noise.domainStrategy
 					finalmask.tcp = finalmask.tcp or {}
+
+					-- 辅助函数：将逗号分隔的字符串拆分为数组
+					local function split_to_array(str)
+						if not str or str == "" then return nil end
+						local result = {}
+						for value in string.gmatch(str, "[^,]+") do
+							value = value:gsub("^%s*(.-)%s*$", "%1")  -- 去除首尾空格
+							if value ~= "" then
+								table.insert(result, value)
+							end
+						end
+						return #result > 0 and result or nil
+					end
+
+					-- 构建 fragment settings
+					local fragment_settings = {
+						packets = (n_packets and n_packets ~= "") and n_packets or nil,
+						maxSplit = (n_maxsplit and n_maxsplit ~= "") and n_maxsplit or nil
+					}
+    
+					-- 根据 Xray 版本决定使用旧格式还是新格式
+					if xray_version_val <= 260601 then
+						-- 旧版本：使用 length 和 delay（单个值）
+						if n_length and n_length ~= "" then
+							fragment_settings.length = n_length
+						end
+						if n_delay and n_delay ~= "" then
+							if type(n_delay) == "string" and n_delay:find("-", 1, true) then
+								fragment_settings.delay = n_delay
+							else
+								fragment_settings.delay = tonumber(n_delay)
+							end
+						end
+					else
+						-- 新版本：使用 lengths 和 delays（数组）
+						-- 拆分逗号分隔的字符串
+						local lengths_array = split_to_array(n_length)
+						if lengths_array then
+							fragment_settings.lengths = lengths_array
+						end
+        
+						local delays_array = split_to_array(n_delay)
+						if delays_array then
+							fragment_settings.delays = delays_array
+						end
+					end
+    
 					finalmask.tcp[#finalmask.tcp + 1] = {
 						type = "fragment",
-						settings = {
-							--domainStrategy = (xray_fragment.noise == "1" and xray_noise.enabled == "1") and domainstr or nil,
-							packets = (n_packets and n_packets ~= "") and n_packets or nil,
-							length = (n_length and n_length ~= "") and n_length or nil,
-							delay = (type(n_delay) == "string" and string.find(n_delay, "-")) and n_delay or (n_delay and tonumber(n_delay)),
-							maxSplit = (n_maxsplit and n_maxsplit ~= "") and n_maxsplit or nil
-						}
+						settings = fragment_settings
 					}
 				end
 				if xray_fragment.noise == "1" and (TP == "kcp" or (TP == "xhttp" and (server.tls_alpn == "h3" or server.tls_alpn == "h3,h2"))) then 

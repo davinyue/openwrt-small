@@ -12,7 +12,7 @@ let has_tun_device = (ARGV[4] || '1') == '1';
 if (has_tun_device && system('(ip tuntap add mode tun name cotuntest >/dev/null 2>&1 && ip link del cotuntest >/dev/null 2>&1)') != 0)
 	has_tun_device = false;
 
-// 默认 6666 必须与 /usr/share/clashoo/net/fw4.sh:CORE_ROUTING_MARK (0x1a0a) 一致；
+// default 6666 must match fw4.sh CORE_ROUTING_MARK (0x1a0a)
 let routing_mark = +(ARGV[5] || '6666');
 let dns_port = +(ARGV[6] || '1053');
 let dash_port = +(ARGV[7] || '9090');
@@ -265,9 +265,9 @@ function dns_server_obj(uri, tag, fallback_type) {
 		obj.path = path;
 	if ((scheme == 'https' || scheme == 'tls' || scheme == 'quic') && tag != 'dns_resolver')
 		obj.domain_resolver = 'dns_resolver';
-	/* sing-box 1.12+ DNS server 默认 detour 走 final outbound（机场代理）→
-	 * 机场要解析自己 server 域名又走 dns_resolver → 死循环 → "lookup ... deadline exceeded" → 国外全 out。
-	 * 直连/解析类 server 一律强制走 DIRECT；只有 dns_proxy 这种"解析国外用"才允许走代理。 */
+	/* sing-box 1.12+ DNS servers detour to the proxy by default, so a server
+	 * resolving its own domain via dns_resolver loops -> "deadline exceeded".
+	 * Force direct/resolver servers to DIRECT; only dns_proxy may use the proxy. */
 	if (tag == 'dns_resolver' || tag == 'dns_direct' || tag == 'dns_foreign')
 		obj.detour = direct_outbound_tag();
 	return obj;
@@ -341,6 +341,41 @@ function add_remote_rule_set(tag, url) {
 	});
 }
 
+function array_has_value(arr, val) {
+	if (type(arr) != 'array')
+		return false;
+	for (let item in arr)
+		if (item == val)
+			return true;
+	return false;
+}
+
+function ensure_tun_cn_exclude(ib) {
+	let excludes = ib.route_exclude_address_set;
+	if (type(excludes) != 'array')
+		excludes = excludes ? [ excludes ] : [];
+	if (!array_has_value(excludes, 'cn-ip'))
+		push(excludes, 'cn-ip');
+	ib.route_exclude_address_set = excludes;
+}
+
+function prune_tun_cn_exclude_if_missing() {
+	if (has_route_rule_set('cn-ip'))
+		return;
+	for (let ib in cfg.inbounds || []) {
+		if (!ib || ib.type != 'tun')
+			continue;
+		let excludes = [];
+		for (let item in ib.route_exclude_address_set || [])
+			if (item != 'cn-ip')
+				push(excludes, item);
+		if (length(excludes))
+			ib.route_exclude_address_set = excludes;
+		else
+			delete ib.route_exclude_address_set;
+	}
+}
+
 function matcher_rule(matcher, server_tag) {
 	let r = { server: server_tag };
 	if (starts_with(matcher, 'geosite:'))
@@ -358,26 +393,26 @@ function matcher_rule(matcher, server_tag) {
 
 function apply_dns_from_uci() {
 	cfg.dns = cfg.dns || {};
-	/* 清除 mihomo 风格 DNS 字段（如 enable/ipv6/listen/fake-ip-filter/nameserver
-	 * 等），这些字段可能从订阅 YAML 转换时混入 JSON，sing-box 不认识会导致 Fatal。 */
+	/* strip mihomo-style DNS fields (enable/ipv6/listen/fake-ip-filter/nameserver...)
+	 * that leak in from YAML conversion; sing-box rejects them (Fatal). */
 	let _mihomo_dns_fields = ['enable', 'ipv6', 'listen', 'fake-ip-filter', 'fake-ip-range',
 	                'enhanced-mode', 'nameserver', 'fallback', 'fallback-filter',
 	                'use-hosts', 'default-nameserver', 'proxy-server-nameserver',
 	                'direct-nameserver', 'nameserver-policy'];
 	for (let _i = 0; _i < length(_mihomo_dns_fields); _i++)
 		delete cfg.dns[_mihomo_dns_fields[_i]];
-	/* 清除 mihomo 风格 experimental 字段 */
+	/* strip mihomo-style experimental fields */
 	let _mihomo_exp = ['sniff-tls-sni', 'sniff', 'sniffer'];
 	for (let _me = 0; _me < length(_mihomo_exp); _me++)
 		if (cfg.experimental && cfg.experimental[_mihomo_exp[_me]] != null)
 			delete cfg.experimental[_mihomo_exp[_me]];
-	/* 清除 root 级别非 sing-box 字段 */
+	/* strip non-sing-box root-level fields */
 	let _mihomo_root = ['clash-for-android', 'cfw-bypass', 'sniffer', 'profile',
 	                'geodata-mode', 'geodata-loader', 'geox-url', 'geo-auto-update',
 	                'geo-update-interval', 'tun', 'ipv6', 'interface-name',
 	                'port', 'socks-port', 'mixed-port', 'redir-port', 'tproxy-port', 'mode', 'allow-lan', 'log-level', 'external-controller', 'secret', 'bind-address', 'routing-mark', 'find-process-mode', 'tcp-concurrent', 'unified-delay',
 	                'keep-alive-interval', 'keep-alive-idle', 'disable-keep-alive'];
-	/* 清除 subconverter 产物的附加说明字段及非标准字段 */
+	/* strip subconverter note fields and non-standard keys */
 	let _subconv_fields = ['_note', '_sub_url', 'hosts', 'script', 'enable', 'fake-ip-filter', 'fake-ip-range'];
 	for (let _sf = 0; _sf < length(_subconv_fields); _sf++)
 		if (cfg[_subconv_fields[_sf]] != null)
@@ -390,7 +425,7 @@ function apply_dns_from_uci() {
 		bootstrap = uci_list('defaul_nameserver');
 	let resolver_uri = first_or(bootstrap, '223.5.5.5');
 	let direct_uri = first_or(dns_servers_by_role('direct-nameserver'), first_or(dns_servers_by_role('nameserver'), 'https://doh.pub/dns-query'));
-	let proxy_uri = first_or(dns_servers_by_role('proxy-server-nameserver'), first_or(dns_servers_by_role('fallback'), '1.1.1.1'));
+	let proxy_uri = first_or(dns_servers_by_role('fallback'), first_or(dns_servers_by_role('proxy-server-nameserver'), '1.1.1.1'));
 
 	let servers = [];
 	push(servers, dns_server_obj(resolver_uri, 'dns_resolver', 'udp'));
@@ -423,13 +458,13 @@ function apply_dns_from_uci() {
 			push(clean_servers, s);
 	cfg.dns.servers = clean_servers;
 	cfg.dns.rules = rules;
-	cfg.dns.final = 'dns_direct';
 
-	/* 防 DNS 泄漏：未匹配域名改走代理 DNS（不落国内 DNS）；AAAA 全部 drop，避免 IPv6 直连绕代理 */
+	/* Keep bootstrap direct; proxy unmatched queries in strict mode. */
 	if (opt_bool(uci_opt('dns_leak_protect', '0'), false)) {
 		cfg.dns.final = 'dns_proxy';
 		unshift(cfg.dns.rules, { query_type: ['AAAA'], action: 'reject', method: 'drop' });
-	}
+	} else
+		cfg.dns.final = 'dns_direct';
 
 	let ecs = trim_s(uci_opt('dns_ecs', ''));
 	if (s_len(ecs))
@@ -442,7 +477,7 @@ function apply_dns_from_uci() {
 	else
 		delete cfg.dns.independent_cache;
 
-		/* sing-box 1.14 强制要求：不设则 Fatal；dns_resolver 绑定 DIRECT，首启动节点域名解析走 DIRECT DNS */
+		/* sing-box 1.14 requires this (else Fatal); dns_resolver is DIRECT so first-start node lookups use direct DNS */
 		cfg.route.default_domain_resolver = 'dns_resolver';
 	}
 
@@ -455,6 +490,11 @@ let has_tun = false;
 let has_dns_in = false;
 let wants_tun = has_tun_device && (uci_opt('tcp_mode', '') == 'tun' || uci_opt('udp_mode', '') == 'tun');
 let tun_stack = uci_opt('stack', 'mixed') || 'mixed';
+
+if (wants_tun) {
+	add_remote_rule_set('cn-ip',
+		'https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/sing/geo/geoip/cn.srs');
+}
 
 for (let ib in inbounds) {
 	if (!ib)
@@ -471,6 +511,7 @@ for (let ib in inbounds) {
 			ib.auto_redirect = true;
 			ib.strict_route = true;
 			ib.stack = tun_stack;
+			ensure_tun_cn_exclude(ib);
 			push(normalized, ib);
 			has_tun = true;
 		}
@@ -548,7 +589,7 @@ if (!has_mixed) {
 }
 
 if (wants_tun && !has_tun) {
-	push(normalized, {
+	let tun_ib = {
 		type: 'tun',
 		tag: 'tun-in',
 		address: [ '172.19.0.1/30', 'fdfe:dcba:9876::1/126' ],
@@ -556,7 +597,9 @@ if (wants_tun && !has_tun) {
 		auto_redirect: true,
 		strict_route: true,
 		stack: tun_stack
-	});
+	};
+	ensure_tun_cn_exclude(tun_ib);
+	push(normalized, tun_ib);
 }
 
 if (!has_tproxy) {
@@ -588,22 +631,29 @@ for (let ob in (cfg.outbounds || [])) {
 	if (t == 'selector' || t == 'urltest' || t == 'fallback' || t == 'load_balance' || t == 'dns' || t == 'block')
 		continue;
 
-		/* plugin_opts 必须是字符串；订阅转换可能输出对象（如 {"mode":"http","host":"..."}），
-		 * sing-box 只接受 "obfs=http;obfs-host=..." 字符串格式。 */
-		/* 清除 sing-box 不支持的 plugin（如 obfs），否则 Fatal: plugin not found */
+		/* Clash SS obfs is plugin=obfs + plugin-opts object; sing-box wants
+		 * plugin=obfs-local + "obfs=http;obfs-host=..." string. */
+		if (ob.plugin == 'obfs')
+			ob.plugin = 'obfs-local';
+		if (ob.plugin_opts != null && type(ob.plugin_opts) == 'object') {
+			let _parts = [];
+			let _map = { mode: 'obfs', host: 'obfs-host', uri: 'obfs-uri' };
+			for (let _k in ob.plugin_opts) {
+				let _v = ob.plugin_opts[_k];
+				if (type(_v) == 'object' || type(_v) == 'array') continue;
+				push(_parts, (_map[_k] || _k) + '=' + _v);
+			}
+			ob.plugin_opts = join(';', _parts);
+		}
 		if (ob.plugin != null && ob.plugin != 'obfs-local' && ob.plugin != 'v2ray-plugin' && ob.plugin != 'shadow-tls') {
 			delete ob.plugin;
 			delete ob.plugin_opts;
 		}
-		if (ob.plugin_opts != null && type(ob.plugin_opts) == 'object') {
-			let _parts = [];
-			for (let _k in ob.plugin_opts) {
-				let _v = ob.plugin_opts[_k];
-				if (type(_v) == 'object' || type(_v) == 'array') continue;
-				push(_parts, _k + '=' + _v);
-			}
-			ob.plugin_opts = join(';', _parts);
-		}
+
+		/* Force ipv4_only on DIRECT outbound: most devices are IPv4-only egress,
+		 * a CN domain resolving AAAA stalls on "network is unreachable". */
+		if (ob.type == 'direct' && ob.tag == 'DIRECT')
+			ob.domain_resolver = { server: 'dns_resolver', strategy: 'ipv4_only' };
 
 		if (wants_tun) {
 			delete ob.routing_mark;
@@ -613,9 +663,9 @@ for (let ob in (cfg.outbounds || [])) {
 			ob.routing_mark = routing_mark;
 	}
 
-/* 把机场塞的"伪节点"（Traffic:/Expire:/剩余流量/官网/QQ/套餐/续费 等）从 selector/urltest 列表中剔除。
- * 它们是真 SS/Vmess 配置（保留让 UI 抽流量到期），但服务端不真转发；放进 selector 后默认选第一个 / urltest 选最快，
- * 国外流量会被吸到伪节点 → 表现为"国内通、国外 out"。 */
+/* Drop airline pseudo-nodes (Traffic:/Expire:/quota/官网/QQ/etc.) from selector/urltest lists.
+ * They're real SS/Vmess (kept so the UI reads traffic/expiry) but don't forward; in a
+ * selector/urltest they win and swallow foreign traffic ("CN ok, foreign out"). */
 let _is_pseudo_tag = function(t) {
 	if (!t) return false;
 	return match(t, /^Traffic[：:]/) || match(t, /^Expire[：:]/) ||
@@ -655,7 +705,7 @@ if (!has_dns_hijack) {
 cfg.route.auto_detect_interface = true;
 apply_dns_from_uci();
 
-/* 防 DNS 泄漏：阻断 DoT/DoQ（853），强制 DNS 走核心。插在 hijack-dns 之后保证 dns 入站不被误杀 */
+/* DNS leak protection: reject DoT/DoQ (853) to force DNS through the core; after hijack-dns so the dns inbound survives */
 if (opt_bool(uci_opt('dns_leak_protect', '0'), false)) {
 	let _has_853 = false;
 	for (let _r in cfg.route.rules) {
@@ -683,16 +733,82 @@ if (opt_bool(uci_opt('dns_leak_protect', '0'), false)) {
 	}
 }
 
+/* ===== Custom routing rules (UCI: config addtype) -> route.rules, mirrors mihomo iprules.sh =====
+ * User "domain/IP -> direct/proxy" rules from LuCI, inserted after the DNS funnel
+ * (hijack-dns / 853-reject) and before other rules, so overrides win without bypassing it. */
+let _proxy_outbound_tag = function() {
+	for (let ob in (cfg.outbounds || []))
+		if (ob && ob.tag == '🚀 节点选择' && (ob.type == 'selector' || ob.type == 'urltest'))
+			return ob.tag;
+	for (let ob in (cfg.outbounds || []))
+		if (ob && ob.type == 'selector' && s_len(ob.tag || '') && !_is_pseudo_tag(ob.tag))
+			return ob.tag;
+	return direct_outbound_tag();
+};
+let _load_addtype_rules = function() {
+	let out = [];
+	let dtag = direct_outbound_tag();
+	let ptag = null;
+	for (let s in uci_sections('addtype')) {
+		let o = s.options || {};
+		let addr = trim_s(o.ipaaddr || '');
+		let rtype = trim_s(o.type || '');
+		let pg = trim_s(o.pgroup || '');
+		if (!s_len(addr) || !s_len(rtype) || !s_len(pg))
+			continue;
+		let r = {};
+		if (rtype == 'DOMAIN')
+			r.domain = addr;
+		else if (rtype == 'DOMAIN-SUFFIX')
+			r.domain_suffix = addr;
+		else if (rtype == 'DOMAIN-KEYWORD')
+			r.domain_keyword = addr;
+		else if (rtype == 'IP-CIDR' || rtype == 'IP-CIDR6')
+			r.ip_cidr = addr;
+		else
+			continue;
+		if (pg == 'DIRECT')
+			r.outbound = dtag;
+		else {
+			if (ptag == null)
+				ptag = _proxy_outbound_tag();
+			r.outbound = ptag;
+		}
+		push(out, r);
+	}
+	return out;
+};
+let _addtype_rules = _load_addtype_rules();
+if (length(_addtype_rules)) {
+	let _nr = [];
+	let _ins = false;
+	for (let _i = 0; _i < length(cfg.route.rules); _i++) {
+		let _ru = cfg.route.rules[_i];
+		let _dns_front = _ru && type(_ru) == 'object' &&
+			(_ru.action == 'hijack-dns' || (_ru.action == 'reject' && _ru.port));
+		if (!_ins && !_dns_front) {
+			for (let _cr in _addtype_rules)
+				push(_nr, _cr);
+			_ins = true;
+		}
+		push(_nr, _ru);
+	}
+	if (!_ins)
+		for (let _cr in _addtype_rules)
+			push(_nr, _cr);
+	cfg.route.rules = _nr;
+}
+
 if (uci_opt('enhanced_mode', 'fake-ip') == 'fake-ip') {
 	add_remote_rule_set('geolocation-!cn',
 		'https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/sing/geo/geosite/geolocation-!cn.srs');
 }
 
-/* 本地有 .srs 则转 local；剩余的 remote rule_set 必须保留/补 download_detour。
- * 大陆首启动死锁链：没 srs → 拉规则 → 走 ♻️ 自动选择 → urltest 测速要拨机场 →
- *   要解析机场域名 → 又被 DNS rules 卷进未加载的 rule_set → deadline。
- * 模板里 srs URL 都走 https://gh-proxy.com/...（大陆直连可达），所以 download_detour
- * 必须是 DIRECT；用 direct outbound 的真实 tag 优先，没有再退到字符串 'DIRECT'。 */
+/* Local .srs -> local; remaining remote rule_sets must keep/get a download_detour.
+ * CN first-start deadlock: no srs -> fetch rules -> via auto-select -> urltest dials
+ *   the proxy -> resolves its domain -> pulled into an unloaded rule_set by DNS rules -> deadline.
+ * The srs URLs use a CN-reachable mirror, so download_detour
+ * must be DIRECT (real direct-outbound tag if any, else 'DIRECT'). */
 let _pick_dl_detour = function() {
 	if (cfg.outbounds) {
 		for (let ob in cfg.outbounds) {
@@ -715,12 +831,12 @@ for (let rs in (cfg.route || {}).rule_set || []) {
 		rs.download_detour = _dl_detour;
 		continue;
 	}
-	/* 没有本地缓存 → 跳过该远程规则集。防止下载失败阻塞 sing-box 启动。
-	 * 规则集在有代理后通过后台脚本下载到 /usr/share/clashoo/ruleset/。 */
+	/* No local cache -> skip this remote rule_set so a failed download doesn't block start.
+	 * Rule-sets are fetched to /usr/share/clashoo/ruleset/ once proxied. */
 	continue;
 
 }
-/* 过滤掉 type=remote 且无本地缓存的规则集 */
+/* filter out remote rule_sets with no local cache */
 let _clean_rs = [];
 for (let _rsi = 0; _rsi < length(cfg.route.rule_set); _rsi++) {
 	let _rs = cfg.route.rule_set[_rsi];
@@ -734,16 +850,17 @@ for (let _rsi = 0; _rsi < length(cfg.route.rule_set); _rsi++) {
 				push(_clean_rs, _rs);
 				continue;
 			} else {
-				continue; /* 无本地缓存 → 不加入最终列表 */
+				continue; /* no local cache -> drop from final list */
 			}
-		/* 有本地缓存 → 转 local */
+		/* has local cache -> convert to local */
 		delete _rs.url; delete _rs.download_detour; _rs.type = 'local'; _rs.path = _local_path;
 	}
 	push(_clean_rs, _rs);
 }
 cfg.route.rule_set = _clean_rs;
+prune_tun_cn_exclude_if_missing();
 
-	/* 删除引用了已移除 rule_set 的 DNS/路由规则，否则 sing-box FATAL: rule-set not found */
+	/* drop DNS/route rules referencing a removed rule_set, else sing-box FATAL: rule-set not found */
 	let _existing_tags = {};
 	for (let _rs in cfg.route.rule_set || []) if (_rs && _rs.tag) _existing_tags[_rs.tag] = true;
 	let _rule_has_ref = function(_r) {
@@ -754,13 +871,13 @@ cfg.route.rule_set = _clean_rs;
 		}
 		return true;
 	};
-	/* 清理 dns.rules */
+	/* clean dns.rules */
 	if (cfg.dns && type(cfg.dns.rules) == 'array') {
 		let _clean_dns_rules = [];
 		for (let _dr in cfg.dns.rules) if (_rule_has_ref(_dr)) push(_clean_dns_rules, _dr);
 		cfg.dns.rules = _clean_dns_rules;
 	}
-	/* 清理 route.rules */
+	/* clean route.rules */
 	if (cfg.route && type(cfg.route.rules) == 'array') {
 		let _clean_rt_rules = [];
 		for (let _rr in cfg.route.rules) if (_rule_has_ref(_rr)) push(_clean_rt_rules, _rr);
@@ -776,6 +893,11 @@ cfg.experimental.cache_file = {
 	enabled: true,
 	store_fakeip: true
 };
+
+/* OpenWrt already owns system time sync. Keep sing-box NTP disabled by
+ * default to avoid noisy IPv6 UDP/123 failures on IPv4-only routers. */
+cfg.ntp = cfg.ntp || {};
+cfg.ntp.enabled = false;
 
 cfg.log = cfg.log || {};
 cfg.log.output = '/var/log/clashoo/core.log';

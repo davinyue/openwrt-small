@@ -111,9 +111,10 @@ const callListConfigs   = rpc.declare({ object: 'luci.clashoo', method: 'list_co
 const callSetConfig     = rpc.declare({ object: 'luci.clashoo', method: 'set_config',       params: ['name'], expect: {} });
 const callSetMode       = rpc.declare({ object: 'luci.clashoo', method: 'set_mode',         params: ['mode'], expect: {} });
 const callSetProxyMode  = rpc.declare({ object: 'luci.clashoo', method: 'set_proxy_mode',   params: ['mode'], expect: {} });
-const callSetCore       = rpc.declare({ object: 'luci.clashoo', method: 'set_core',         params: ['core', 'dcore'], expect: {} });
+const callSetCore       = rpc.declare({ object: 'luci.clashoo', method: 'set_core',         params: ['core', 'dcore', 'action'], expect: {} });
 const callSetPanel      = rpc.declare({ object: 'luci.clashoo', method: 'set_panel',        params: ['name'], expect: {} });
 const callUpdatePanel   = rpc.declare({ object: 'luci.clashoo', method: 'update_panel',     params: ['name'], expect: {} });
+const callPanelStatus   = rpc.declare({ object: 'luci.clashoo', method: 'panel_status',     expect: {} });
 const callReadLog       = rpc.declare({ object: 'luci.clashoo', method: 'read_log',         expect: {} });
 const callReadRealLog   = rpc.declare({ object: 'luci.clashoo', method: 'read_real_log',    expect: {} });
 const callClearLog      = rpc.declare({ object: 'luci.clashoo', method: 'clear_log',        expect: {} });
@@ -129,6 +130,10 @@ const callGetCpuArch    = rpc.declare({ object: 'luci.clashoo', method: 'get_cpu
 const callDownloadCore  = rpc.declare({ object: 'luci.clashoo', method: 'download_core',    expect: {} });
 const callUpdateGeoip      = rpc.declare({ object: 'luci.clashoo', method: 'update_geoip',      expect: {} });
 const callGetGeoipVersion  = rpc.declare({ object: 'luci.clashoo', method: 'get_geoip_version', expect: {} });
+const callComponentStatus    = rpc.declare({ object: 'luci.clashoo', method: 'component_status',     expect: {} });
+const callComponentUpdate    = rpc.declare({ object: 'luci.clashoo', method: 'component_update',     params: ['component', 'variant'], expect: {} });
+const callComponentUpdateLog = rpc.declare({ object: 'luci.clashoo', method: 'component_update_log', expect: {} });
+const callComponentCheckUpdates = rpc.declare({ object: 'luci.clashoo', method: 'component_check_updates', expect: {} });
 const callUpdateChinaIp = rpc.declare({ object: 'luci.clashoo', method: 'update_china_ip',  expect: {} });
 const callGetLogStatus  = rpc.declare({ object: 'luci.clashoo', method: 'get_log_status',   expect: {} });
 const callAccessCheck       = rpc.declare({ object: 'luci.clashoo', method: 'access_check',       expect: {} });
@@ -137,18 +142,48 @@ const callOverviewStats     = rpc.declare({ object: 'luci.clashoo', method: 'ove
 const callOverview          = rpc.declare({ object: 'luci.clashoo', method: 'overview',           expect: {} });
 const callSmartFlushCache       = rpc.declare({ object: 'luci.clashoo', method: 'smart_flush_cache',       expect: {} });
 const callSmartUpgradeLgbm      = rpc.declare({ object: 'luci.clashoo', method: 'smart_upgrade_lgbm',      expect: {} });
+const callSmartUpgradeLgbmStatus= rpc.declare({ object: 'luci.clashoo', method: 'smart_upgrade_lgbm_status', expect: {} });
 const callSmartModelStatus      = rpc.declare({ object: 'luci.clashoo', method: 'smart_model_status',      expect: {} });
 const callListSingboxProfiles   = rpc.declare({ object: 'luci.clashoo', method: 'list_singbox_profiles',   expect: {} });
 const callGetSingboxProfile     = rpc.declare({ object: 'luci.clashoo', method: 'get_singbox_profile',     params: ['name'],                   expect: {} });
 const callSaveSingboxProfile    = rpc.declare({ object: 'luci.clashoo', method: 'save_singbox_profile',    params: ['name', 'content'],         expect: {} });
 const callSetSingboxProfile     = rpc.declare({ object: 'luci.clashoo', method: 'set_singbox_profile',     params: ['name'],                   expect: {} });
 const callDeleteSingboxProfile  = rpc.declare({ object: 'luci.clashoo', method: 'delete_singbox_profile',  params: ['name'],                   expect: {} });
-const callCreateSingboxConfig   = rpc.declare({ object: 'luci.clashoo', method: 'create_singbox_config',   params: ['sub_url', 'name', 'secret'], expect: {} });
+const callCreateSingboxConfig   = rpc.declare({ object: 'luci.clashoo', method: 'create_singbox_config',   params: ['sub_url', 'name'], expect: {} });
 const callCommitConfig          = rpc.declare({ object: 'luci.clashoo', method: 'commit_config',            expect: {} });
+const callDnsAutoSetup          = rpc.declare({ object: 'luci.clashoo', method: 'dns_auto_setup',           expect: {} });
 const callFetchSingboxNative    = rpc.declare({ object: 'luci.clashoo', method: 'fetch_singbox_native',    params: ['url', 'name'],  expect: {} });
 const callUpdateSingboxNative   = rpc.declare({ object: 'luci.clashoo', method: 'update_singbox_native',   params: ['name'],         expect: {} });
 
+// 把脚本输出的英文 log 行翻成中文（去掉前导时间戳）
+function localizeLogLine(line) {
+    var msg = String(line || '').replace(/^\s*\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}\s*-?\s*/, '');
+    var rules = [
+        // LightGBM 模型更新
+        [/^Start downloading LightGBM model from:?\s*(.*)$/i, '开始下载 LightGBM 模型：$1'],
+        [/^Model unchanged, no update needed$/i,              '模型已是最新版本，无需更新'],
+        [/^LightGBM model updated successfully$/i,            'LightGBM 模型更新成功'],
+        [/^Download failed \(rc=(\d+)\)$/i,                   '下载失败（错误码 $1）'],
+        [/^Failed to install model to (.*)$/i,                '模型安装失败：$1'],
+        [/^No curl or wget found$/i,                          '未找到 curl 或 wget'],
+        // GeoIP / GeoSite 更新
+        [/^Updating (.+)$/i,                                  '正在更新 $1'],
+        [/^(.+) updated$/i,                                   '$1 已更新'],
+        [/^GeoIP update completed, apply on next Clashoo restart$/i, 'GeoIP 更新完成，重启 Clashoo 后生效'],
+        [/^GeoIP update completed$/i,                         'GeoIP 更新完成'],
+        [/^GeoIP update failed$/i,                            'GeoIP 更新失败'],
+        // 通用
+        [/^Download succeeded$/i,                             '下载成功'],
+        [/^Already up to date$/i,                             '已是最新版本']
+    ];
+    for (var i = 0; i < rules.length; i++) {
+        if (rules[i][0].test(msg)) return msg.replace(rules[i][0], rules[i][1]);
+    }
+    return msg;
+}
+
 return baseclass.extend({
+    localizeLogLine: localizeLogLine,
     status: function () { return L.resolveDefault(callStatus(), {}); },
     start: function () { return L.resolveDefault(callStart(), {}); },
     stop: function () { return L.resolveDefault(callStop(), {}); },
@@ -161,9 +196,10 @@ return baseclass.extend({
     setConfig: function (name) { return L.resolveDefault(callSetConfig(name), {}); },
     setMode: function (mode) { return L.resolveDefault(callSetMode(mode), {}); },
     setProxyMode: function (mode) { return L.resolveDefault(callSetProxyMode(mode), {}); },
-    setCore: function (core, dcore) { return L.resolveDefault(callSetCore(core, dcore), {}); },
+    setCore: function (core, dcore, action) { return L.resolveDefault(callSetCore(core, dcore, action), {}); },
     setPanel: function (name) { return L.resolveDefault(callSetPanel(name), {}); },
-    updatePanel: function (name) { return L.resolveDefault(callUpdatePanel(name || 'metacubexd'), {}); },
+    updatePanel: function (name) { return L.resolveDefault(callUpdatePanel(name || 'zashboard'), {}); },
+    panelStatus: function () { return L.resolveDefault(callPanelStatus(), {}); },
 
     readLog: function () { return L.resolveDefault(callReadLog(), { content: '' }).then(r => r.content || ''); },
     readRealLog: function () { return L.resolveDefault(callReadRealLog(), { content: '' }).then(r => r.content || ''); },
@@ -178,9 +214,13 @@ return baseclass.extend({
     clearUpdateMergedLog: function () { return L.resolveDefault(callClearUpdateMergedLog(), {}); },
 
     getCpuArch: function () { return L.resolveDefault(callGetCpuArch(), { arch: '' }).then(r => r.arch || ''); },
-    downloadCore: function () { return L.resolveDefault(callDownloadCore(), {}); },
+    downloadCore: function (dcore, arch) { return L.resolveDefault(callDownloadCore({ dcore: dcore, arch: arch }), {}); },
     updateGeoip:      function () { return L.resolveDefault(callUpdateGeoip(),     {}); },
     getGeoipVersion:  function () { return L.resolveDefault(callGetGeoipVersion(), { version: '' }); },
+    componentStatus:    function () { return L.resolveDefault(callComponentStatus(),    { running: false, components: [] }); },
+    componentUpdate:    function (component, variant) { return L.resolveDefault(callComponentUpdate(component, variant || ''), { success: false }); },
+    componentUpdateLog: function () { return L.resolveDefault(callComponentUpdateLog(), { running: false, content: '' }); },
+    componentCheckUpdates: function () { return L.resolveDefault(callComponentCheckUpdates(), { ok: false, latest: {} }); },
     updateChinaIp: function () { return L.resolveDefault(callUpdateChinaIp(), {}); },
     getLogStatus: function () { return L.resolveDefault(callGetLogStatus(), {}); },
     accessCheck:        function () { return L.resolveDefault(callAccessCheck(),      {}); },
@@ -195,7 +235,8 @@ return baseclass.extend({
         });
     },
     smartFlushCache:    function () { return L.resolveDefault(callSmartFlushCache(),  { success: false }); },
-    smartUpgradeLgbm:   function () { return L.resolveDefault(callSmartUpgradeLgbm(), { success: false }); },
+    smartUpgradeLgbm:       function () { return L.resolveDefault(callSmartUpgradeLgbm(), { success: false }); },
+    smartUpgradeLgbmStatus: function () { return L.resolveDefault(callSmartUpgradeLgbmStatus(), { running: false }); },
     smartModelStatus:   function () { return L.resolveDefault(callSmartModelStatus(),  { has_model: false, version: '' }); },
 
     listSingboxProfiles:  function ()           { return L.resolveDefault(callListSingboxProfiles(),          { profiles: [], active: '' }); },
@@ -203,8 +244,9 @@ return baseclass.extend({
     saveSingboxProfile:   function (name, content){ return L.resolveDefault(callSaveSingboxProfile(name, content), {}); },
     setSingboxProfile:    function (name)        { return L.resolveDefault(callSetSingboxProfile(name),        {}); },
     deleteSingboxProfile: function (name)        { return L.resolveDefault(callDeleteSingboxProfile(name),     {}); },
-    createSingboxConfig:  function (url, name, secret) { return L.resolveDefault(callCreateSingboxConfig(url, name, secret), {}); },
+    createSingboxConfig:  function (url, name) { return L.resolveDefault(callCreateSingboxConfig(url, name), {}); },
     commitConfig:         function ()               { return L.resolveDefault(callCommitConfig(),               { success: false }); },
+    dnsAutoSetup:         function ()               { return L.resolveDefault(callDnsAutoSetup(),               { success: false }); },
     fetchSingboxNative:   function (url, name)      { return L.resolveDefault(callFetchSingboxNative(url, name), {}); },
     updateSingboxNative:  function (name)           { return L.resolveDefault(callUpdateSingboxNative(name),     {}); },
 

@@ -14,6 +14,16 @@ document.querySelector('head').appendChild(E('link', {
 	'href': L.resource('view/fchomo/node.css')
 }));
 
+const age_encryption = {
+	keypairs: {
+		types: [
+			['age-x25519', _('age-x25519')],
+			['age-mlkem768-x25519', _('age-mlkem768-x25519')],
+			['age-convert', _('Derive from priv-key')]
+		]
+	}
+};
+
 const CBIBubblesValue = form.DummyValue.extend({
 	__name__: 'CBI.BubblesValue',
 
@@ -94,7 +104,7 @@ const parseProviderYaml = hm.parseYaml.extend({
 		if (!cfg.type)
 			return null;
 
-		// key mapping // 2026/01/17
+		// key mapping // 2026/06/06
 		let config = hm.removeBlankAttrs({
 			id: this.id,
 			label: this.label,
@@ -107,6 +117,7 @@ const parseProviderYaml = hm.parseYaml.extend({
 				size_limit: cfg["size-limit"],
 				interval: cfg.interval,
 				proxy: cfg.proxy ? hm.preset_outbound.full.map(([key, label]) => key).includes(cfg.proxy) ? cfg.proxy : this.calcID(hm.glossary["proxy_group"].field, cfg.proxy) : null,
+				age_private_key: cfg["age-secret-key"],
 				header: cfg.header ? JSON.stringify(cfg.header, null, 2) : null, // string: object
 				/* Health fields */
 				health_enable: this.bool2str(this.jq(cfg, "health-check.enable")), // bool
@@ -200,7 +211,7 @@ return view.extend({
 	render(data) {
 		let m, s, o, ss, so;
 
-		m = new form.Map('fchomo', _('Edit node'));
+		m = new form.Map('fchomo', _('Edit outbound'));
 
 		s = m.section(form.NamedSection, 'global', 'fchomo');
 
@@ -221,6 +232,7 @@ return view.extend({
 
 		ss.tab('field_general', _('General fields'));
 		ss.tab('field_vless_encryption', _('Vless Encryption fields'));
+		ss.tab('field_hysteria2_realm', _('Hysteria2 Realm fields'));
 		ss.tab('field_tls', _('TLS fields'));
 		ss.tab('field_transport', _('Transport fields'));
 		ss.tab('field_multiplex', _('Multiplex fields'));
@@ -235,7 +247,7 @@ return view.extend({
 		so.default = so.enabled;
 		so.editable = true;
 
-		so = ss.taboption('field_general', form.ListValue, 'type', _('Type'));
+		so = ss.taboption('field_general', form.RichListValue, 'type', _('Type'));
 		so.default = hm.outbound_type[0][0];
 		hm.outbound_type.forEach((res) => {
 			so.value.apply(so, res);
@@ -244,12 +256,24 @@ return view.extend({
 		so = ss.taboption('field_general', form.Value, 'server', _('Server address'));
 		so.datatype = 'host';
 		so.rmempty = false;
-		so.depends({type: 'direct', '!reverse': true});
+		so.depends({type: /^(rematch|direct)$/, '!reverse': true});
 
 		so = ss.taboption('field_general', form.Value, 'port', _('Port'));
 		so.datatype = 'port';
 		so.rmempty = false;
-		so.depends({type: /^(direct|mieru)$/, '!reverse': true});
+		so.depends({type: /^(rematch|direct|mieru)$/, '!reverse': true});
+
+		/* Rematch fields */
+		so = ss.taboption('field_general', form.ListValue, 'target_rematch_name', _('REMATCH-NAME marking'));
+		so.load = L.bind(hm.loadRematchName, so, [['', _('-- Please choose --')]]);
+		so.rmempty = false;
+		so.depends('type', 'rematch');
+		so.modalonly = true;
+
+		so = ss.taboption('field_general', form.ListValue, 'target_sub_rule', _('Use sub rule'));
+		so.load = L.bind(hm.loadSubRuleGroup, so, [['', _('-- Please choose --')]]);
+		so.depends('type', 'rematch');
+		so.modalonly = true;
 
 		/* HTTP / SOCKS fields */
 		/* hm.validateAuth */
@@ -297,6 +321,7 @@ return view.extend({
 		so = ss.taboption('field_general', form.ListValue, 'hysteria_obfs_type', _('Obfuscate type'));
 		so.value('', _('Disable'));
 		so.value('salamander', _('Salamander'));
+		so.value('gecko', _('Gecko'));
 		so.depends('type', 'hysteria2');
 		so.modalonly = true;
 
@@ -306,6 +331,16 @@ return view.extend({
 		so.rmempty = false;
 		so.depends('type', 'hysteria');
 		so.depends({type: 'hysteria2', hysteria_obfs_type: /.+/});
+		so.modalonly = true;
+
+		so = ss.taboption('field_general', form.Value, 'hysteria_obfs_min_packet_size', _('Obfuscate minimum packet size'));
+		so.placeholder = '512'
+		so.depends('hysteria_obfs_type', 'gecko');
+		so.modalonly = true;
+
+		so = ss.taboption('field_general', form.Value, 'hysteria_obfs_max_packet_size', _('Obfuscate maximum packet size'));
+		so.placeholder = '1200'
+		so.depends('hysteria_obfs_type', 'gecko');
 		so.modalonly = true;
 
 		/* SSH fields */
@@ -507,8 +542,15 @@ return view.extend({
 		so.value('1', _('v1'));
 		so.value('2', _('v2'));
 		so.value('3', _('v3'));
-		so.default = '3';
+		so.value('4', _('v4'));
+		so.value('5', _('v5'));
+		so.default = '4';
 		so.depends('type', 'snell');
+		so.modalonly = true;
+
+		so = ss.taboption('field_general', form.Flag, 'snell_reuse', _('Connection reuse'));
+		so.default = so.disabled;
+		so.depends({type: 'snell', snell_version: /^(4|5)$/});
 		so.modalonly = true;
 
 		/* TUIC fields */
@@ -546,6 +588,11 @@ return view.extend({
 		so = ss.taboption('field_general', form.Value, 'tuic_max_udp_relay_packet_size', _('Max UDP relay packet size'));
 		so.datatype = 'uinteger';
 		so.placeholder = '1500';
+		so.depends('type', 'tuic');
+		so.modalonly = true;
+
+		so = ss.taboption('field_general', form.Flag, 'tuic_fast_open', _('Enable fast open'));
+		so.default = so.disabled;
 		so.depends('type', 'tuic');
 		so.modalonly = true;
 
@@ -691,18 +738,38 @@ return view.extend({
 		so.datatype = 'ip4addr(1)';
 		so.placeholder = '172.16.0.2';
 		so.rmempty = false;
-		so.depends('type', 'masque');
+		so.depends({type: 'masque', masque_network: /^(|h2)$/});
 		so.modalonly = true;
 
 		so = ss.taboption('field_general', form.Value, 'masque_ipv6', _('Local IPv6 address'),
 			_('The %s address used by local machine in the Cloudflare WARP network.').format('IPv6'));
 		so.datatype = 'ip6addr(1)';
-		so.depends('type', 'masque');
+		so.depends({type: 'masque', masque_network: /^(|h2)$/});
 		so.modalonly = true;
 
 		so = ss.taboption('field_general', form.Value, 'masque_mtu', _('MTU'));
 		so.datatype = 'range(0,9000)';
 		so.placeholder = '1280';
+		so.depends({type: 'masque', masque_network: /^(|h2)$/});
+		so.modalonly = true;
+
+		so = ss.taboption('field_general', form.ListValue, 'masque_network', _('Network'));
+		so.default = '';
+		so.value('', _('h3'));
+		so.value('h3-l4proxy', _('h3-l4proxy'));
+		so.value('h2', _('h2'));
+		so.validate = function(section_id, value) {
+			const udp = this.section.getUIElement(section_id, 'udp').node.querySelector('input');
+
+			// Force disabled
+			if (value === 'h3-l4proxy') {
+				udp.checked = false;
+				udp.disabled = true;
+			} else
+				udp.removeAttribute('disabled');
+
+			return true;
+		}
 		so.depends('type', 'masque');
 		so.modalonly = true;
 
@@ -859,7 +926,8 @@ return view.extend({
 		hm.congestion_controller.forEach((res) => {
 			so.value.apply(so, res);
 		})
-		so.depends({type: /^(tuic|masque|trusttunnel)$/});
+		so.depends({type: /^(tuic|trusttunnel)$/});
+		so.depends({type: 'masque', masque_network: /^(|h3-l4proxy)$/});
 		so.modalonly = true;
 
 		so = ss.taboption('field_general', form.ListValue, 'bbr_profile', _('BBR profile'));
@@ -873,7 +941,8 @@ return view.extend({
 
 		so = ss.taboption('field_general', form.Flag, 'udp', _('UDP'));
 		so.default = so.disabled;
-		so.depends({type: /^(direct|socks5|ss|mieru|vmess|vless|trojan|anytls|trusttunnel|masque|wireguard)$/});
+		so.depends({type: /^(rematch|direct|socks5|ss|mieru|vmess|vless|trojan|anytls|trusttunnel|masque|wireguard)$/});
+		so.depends({type: 'snell', snell_version: /^(3|4|5)$/});
 		so.modalonly = true;
 
 		so = ss.taboption('field_general', form.Flag, 'uot', _('UoT'),
@@ -956,6 +1025,40 @@ return view.extend({
 		so.depends('vless_encryption', '1');
 		so.modalonly = true;
 
+		// @ 下面支持填写针对download-settings的上下行分离配置
+
+		/* Hysteria2 Realm fields */
+		so = ss.taboption('field_general', form.Flag, 'hysteria2_realm', _('Realm'));
+		so.default = so.disabled;
+		so.depends('type', 'hysteria2');
+		so.modalonly = true;
+
+		so = ss.taboption('field_hysteria2_realm', form.Value, 'hysteria2_realm_server_url', _('Rendezvous server'));
+		so.placeholder = 'https://realm.hy2.io';
+		so.rmempty = false;
+		so.depends('hysteria2_realm', '1');
+		so.modalonly = true;
+
+		so = ss.taboption('field_hysteria2_realm', form.Value, 'hysteria2_realm_token', _('Pre-shared key of rendezvous server'));
+		so.placeholder = 'public';
+		so.depends('hysteria2_realm', '1');
+		so.modalonly = true;
+
+		so = ss.taboption('field_hysteria2_realm', form.Value, 'hysteria2_realm_id', _('Realm ID'));
+		so.placeholder = 'my-cabin-1f3a8c2e9b';
+		so.rmempty = false;
+		so.depends('hysteria2_realm', '1');
+		so.modalonly = true;
+
+		so = ss.taboption('field_hysteria2_realm', form.DynamicList, 'hysteria2_realm_stun_servers', _('STUN servers'));
+		so.datatype = 'hostport';
+		so.default = ['stun.nextcloud.com:3478','stun.sip.us:3478','global.stun.twilio.com:3478'];
+		so.rmempty = false;
+		so.depends('hysteria2_realm', '1');
+		so.modalonly = true;
+
+		// @ 下面支持填写针对server-url的TLS配置(sni, skip-cert-verify, fingerprint, certificate, private-key, alpn)
+
 		/* TLS fields */
 		so = ss.taboption('field_general', form.Flag, 'tls', _('TLS'));
 		so.default = so.disabled;
@@ -973,7 +1076,7 @@ return view.extend({
 
 			return true;
 		}
-		so.depends({type: /^(http|socks5|vmess|vless|trojan|anytls|hysteria|hysteria2|tuic|masque|trusttunnel)$/});
+		so.depends({type: /^(http|socks5|vmess|vless|trojan|anytls|hysteria|hysteria2|tuic|trusttunnel)$/});
 		so.modalonly = true;
 
 		so = ss.taboption('field_tls', form.Flag, 'tls_disable_sni', _('Disable SNI'),
@@ -985,7 +1088,7 @@ return view.extend({
 		so = ss.taboption('field_tls', form.Value, 'tls_sni', _('TLS SNI'),
 			_('Used to verify the hostname on the returned certificates.'));
 		so.depends({tls: '1', type: /^(http|vmess|vless|trojan|anytls|hysteria|hysteria2|trusttunnel)$/});
-		so.depends({tls: '1', tls_disable_sni: '0', type: /^(tuic)$/});
+		so.depends({tls: '1', type: /^(tuic)$/, tls_disable_sni: '0'});
 		so.modalonly = true;
 
 		so = ss.taboption('field_tls', form.DynamicList, 'tls_alpn', _('TLS ALPN'),
@@ -1016,9 +1119,6 @@ return view.extend({
 					case 'vless':
 						def_alpn = ['h3', 'h2', 'http/1.1'];
 						break;
-					case 'masque':
-						def_alpn = ['h2'];
-						break;
 					case 'trusttunnel':
 						def_alpn = ['h3', 'h2'];
 						break;
@@ -1031,7 +1131,7 @@ return view.extend({
 
 			return true;
 		}
-		so.depends({tls: '1', type: /^(vmess|vless|trojan|anytls|hysteria|hysteria2|tuic|masque|trusttunnel)$/});
+		so.depends({tls: '1', type: /^(vmess|vless|trojan|anytls|hysteria|hysteria2|tuic|trusttunnel)$/});
 		so.depends({type: 'ss', plugin: 'shadow-tls'});
 		so.modalonly = true;
 
@@ -1405,10 +1505,12 @@ return view.extend({
 		/* Dial fields */
 		so = ss.taboption('field_dial', form.Flag, 'tfo', _('TFO'));
 		so.default = so.disabled;
+		so.depends({type: /^(rematch)$/, '!reverse': true});
 		so.modalonly = true;
 
 		so = ss.taboption('field_dial', form.Flag, 'mptcp', _('mpTCP'));
 		so.default = so.disabled;
+		so.depends({type: /^(rematch)$/, '!reverse': true});
 		so.modalonly = true;
 
 		/* Features are implemented in proxy chain
@@ -1422,11 +1524,13 @@ return view.extend({
 			_('Priority: Proxy Node > Global.'));
 		so.multiple = false;
 		so.noaliases = true;
+		so.depends({type: /^(rematch)$/, '!reverse': true});
 		so.modalonly = true;
 
-		so = ss.taboption('field_dial', form.Value, 'routing_mark', _('Routing mark'),
+		so = ss.taboption('field_dial', form.Value, 'routing_mark', _('Routing mark (Fwmark)'),
 			_('Priority: Proxy Node > Global.'));
 		so.datatype = 'uinteger';
+		so.depends({type: /^(rematch)$/, '!reverse': true});
 		so.modalonly = true;
 
 		so = ss.taboption('field_dial', form.ListValue, 'ip_version', _('IP version'));
@@ -1434,6 +1538,7 @@ return view.extend({
 		hm.ip_version.forEach((res) => {
 			so.value.apply(so, res);
 		})
+		so.depends({type: /^(rematch)$/, '!reverse': true});
 		so.modalonly = true;
 		/* Proxy Node END */
 
@@ -1465,6 +1570,7 @@ return view.extend({
 							'    interval: 3600\n' +
 							'    proxy: DIRECT\n' +
 							'    size-limit: 0\n' +
+							'    age-secret-key: AGE-SECRET-KEY-1ZTQLLN0A4U3ZTT3DCZKYN0CGZEZQLWX2DFTXUWMT4ZHR0N2UG6LSW9NT0N\n' +
 							'    header:\n' +
 							'      User-Agent:\n' +
 							'      - "mihomo/1.18.3"\n' +
@@ -1472,6 +1578,8 @@ return view.extend({
 							"      - 'application/vnd.github.v3.raw'\n" +
 							'      Authorization:\n' +
 							"      - 'token 1231231'\n" +
+							'      X-Age-Public-Key:\n' +
+							"      - 'age1xh86kh9v23vattr58yedspm3f57sxvnswu9krr6ns438amekx5gsd09uma'\n" +
 							'    health-check:\n' +
 							'      enable: true\n' +
 							'      interval: 600\n' +
@@ -1647,9 +1755,74 @@ return view.extend({
 		//so.editable = true;
 		so.depends('type', 'http');
 
+		so = ss.taboption('field_general', hm.GenValue, 'age_private_key', _('age private key'));
+		so.password = true;
+		so.hm_options = {
+			type: age_encryption.keypairs.types[0][0],
+			params: '',
+			callback: function(result) {
+				const section_id = this.section.section;
+
+				let header = {};
+				try {
+					header = JSON.parse(this.section.formvalue(section_id, 'header').trim());
+				} catch {}
+
+				header['X-Age-Public-Key'] = [result.public_key].filter(Boolean);
+
+				return [
+					[this.option, this.hm_options.params || result.private_key],
+					['age_public_key', result.public_key],
+					['header', JSON.stringify(header, null, 2)]
+				]
+			}
+		}
+		so.renderWidget = function(section_id, option_index, cfgvalue) {
+			let node = form.Value.prototype.renderWidget.call(this, section_id, option_index, cfgvalue);
+			const cbid = this.cbid(section_id) + '._keytype_select';
+			const selected = this.hm_options.type;
+
+			let selectEl = E('select', {
+				id: cbid,
+				class: 'cbi-input-select',
+				style: 'width: 10em',
+			});
+
+			age_encryption.keypairs.types.forEach(([k, v]) => {
+				selectEl.appendChild(E('option', {
+					'value': k,
+					'selected': (k === selected) ? '' : null
+				}, [ v ]));
+			});
+
+			node.appendChild(E('div',  { 'class': 'control-group' }, [
+				selectEl,
+				E('button', {
+					class: 'cbi-button cbi-button-add',
+					click: ui.createHandlerFn(this, () => {
+						this.hm_options.type = document.getElementById(cbid).value;
+						if (this.hm_options.type === 'age-convert')
+							this.hm_options.params = this.formvalue(section_id);
+						else
+							this.hm_options.params = '';
+
+						return hm.handleGenKey.call(this, this.hm_options);
+					})
+				}, [ _('Generate') ])
+			]));
+
+			return node;
+		}
+		so.depends('type', 'http');
+		so.modalonly = true;
+
+		so = ss.taboption('field_general', hm.CopyValue, 'age_public_key', _('age public key'));
+		so.depends('type', 'http');
+		so.modalonly = true;
+
 		so = ss.taboption('field_general', hm.TextValue, 'header', _('HTTP header'),
 			_('Custom HTTP header.'));
-		so.placeholder = '{\n  "User-Agent": [\n    "mihomo/1.18.3"\n  ],\n  "Accept": [\n    //"application/vnd.github.v3.raw"\n  ],\n  "Authorization": [\n    //"token 1231231"\n  ]\n}';
+		so.placeholder = '{\n  "User-Agent": [\n    "mihomo/1.18.3"\n  ],\n  "Accept": [\n    //"application/vnd.github.v3.raw"\n  ],\n  "Authorization": [\n    //"token 1231231"\n  ]\n  "X-Age-Public-Key": [\n    //"age1xh86kh9v23vattr58yedspm3f57sxvnswu9krr6ns438amekx5gsd09uma"\n  ]\n}';
 		so.validate = hm.validateJson;
 		so.depends('type', 'http');
 		so.modalonly = true;
@@ -1741,7 +1914,7 @@ return view.extend({
 		so.depends({type: 'inline', '!reverse': true});
 		so.modalonly = true;
 
-		so = ss.taboption('field_override', form.Value, 'override_routing_mark', _('Routing mark'),
+		so = ss.taboption('field_override', form.Value, 'override_routing_mark', _('Routing mark (Fwmark)'),
 			_('Priority: Proxy Node > Global.'));
 		so.datatype = 'uinteger';
 		so.depends({type: 'inline', '!reverse': true});

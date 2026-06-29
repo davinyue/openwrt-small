@@ -1,8 +1,8 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=clashoo
-PKG_SHORT_SHA:=163ce6a
-PKG_COMMIT_DATE:=2026.05.05
+PKG_SHORT_SHA:=24b6de7
+PKG_COMMIT_DATE:=2026.06.26
 
 PKG_VERSION:=$(PKG_COMMIT_DATE)~$(PKG_SHORT_SHA)
 PKG_RELEASE:=1
@@ -10,10 +10,9 @@ PKG_RELEASE:=1
 PKG_SOURCE:=$(PKG_NAME)-alpha-$(PKG_SHORT_SHA).tar.gz
 PKG_SOURCE_SUBDIR:=$(PKG_NAME)-alpha-$(PKG_SHORT_SHA)
 PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_NAME)-alpha-$(PKG_SHORT_SHA)
-PKG_SOURCE_PROTO:=git
-PKG_SOURCE_URL:=https://github.com/MetaCubeX/mihomo.git
-PKG_SOURCE_VERSION:=163ce6abd42be2638c6de67cf64fae4826788477
-PKG_MIRROR_HASH:=101cfafa2143e63ee54168d48c66272e4d85c2d434b64969ce35895f407b8b3e
+PKG_SOURCE_URL:=https://github.com/kenzok8/openwrt-clashoo/releases/download/mihomo-src
+PKG_SOURCE_VERSION:=24b6de71fc1c4ea282dcbc7b65a8bcbcc0c75e6c
+PKG_HASH:=76967080afe5b509ea44601e64eb864f3b2d4e3268f6166297432e64a051b7c0
 PKG_BUILD_VERSION:=alpha-$(PKG_SHORT_SHA)
 
 PKG_LICENSE:=GPL3.0+
@@ -36,7 +35,7 @@ define Package/clashoo
   SECTION:=net
   CATEGORY:=Network
   TITLE:=Clashoo (Mihomo)
-  DEPENDS:=$(GO_ARCH_DEPENDS) +ca-bundle +yq +firewall4 +ip-full +kmod-inet-diag +kmod-nft-socket +kmod-nft-tproxy +kmod-tun +kmod-dummy
+  DEPENDS:=$(GO_ARCH_DEPENDS) +ca-bundle +yq +firewall4 +ip-full +coreutils-nohup +kmod-inet-diag +kmod-nft-socket +kmod-nft-tproxy +kmod-tun +kmod-dummy +unzip
   PROVIDES:=mihomo clash-meta
 endef
 
@@ -61,11 +60,6 @@ define Package/clashoo/install
 	$(INSTALL_DIR) $(1)/etc/clashoo/proxyprovider
 	$(INSTALL_DIR) $(1)/etc/clashoo/ruleprovider
 	$(INSTALL_DIR) $(1)/usr/share/clashoo
-	$(INSTALL_DIR) $(1)/usr/share/clashoo/runtime
-	$(INSTALL_DIR) $(1)/usr/share/clashoo/update
-	$(INSTALL_DIR) $(1)/usr/share/clashoo/net
-	$(INSTALL_DIR) $(1)/usr/share/clashoo/rpc
-	$(INSTALL_DIR) $(1)/usr/share/clashoo/lib
 	$(INSTALL_DIR) $(1)/usr/share/clashbackup
 	$(INSTALL_DIR) $(1)/usr/share/clashoo/config
 	$(INSTALL_DIR) $(1)/usr/share/clashoo/config/sub
@@ -74,6 +68,7 @@ define Package/clashoo/install
 
 	$(INSTALL_BIN) $(CURDIR)/files/etc/init.d/clashoo $(1)/etc/init.d/clashoo
 	$(INSTALL_CONF) $(CURDIR)/files/etc/config/clashoo $(1)/etc/config/clashoo
+	$(INSTALL_DATA) $(CURDIR)/files/etc/config/clashoo $(1)/usr/share/clashoo/clashoo.default
 	$(CP) $(CURDIR)/files/usr/share/clashoo/* $(1)/usr/share/clashoo/
 
 	$(RM) $(1)/usr/share/clashoo/dashboard
@@ -91,7 +86,11 @@ if [ -z "${IPKG_INSTROOT}" ]; then
 	rm -f /usr/share/clashoo/cuslist.sh /usr/share/clashoo/groups.sh /usr/share/clashoo/load_groups.sh /usr/share/clashoo/panel_diag.sh
 	rm -f /usr/share/clashoo/rmlist.sh /usr/share/clashoo/uplist.sh /usr/share/clashoo/rpc_restart_async.sh /usr/share/clashoo/rpc_update_china_ip_async.sh
 	rm -rf /usr/share/clashoo/create
-	/etc/init.d/clashoo disable 2>/dev/null
+	if [ "$(uci -q get clashoo.config.enable 2>/dev/null)" = "1" ]; then
+		/etc/init.d/clashoo enable 2>/dev/null || true
+	else
+		/etc/init.d/clashoo disable 2>/dev/null || true
+	fi
 fi
 exit 0
 endef

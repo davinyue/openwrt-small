@@ -10,10 +10,16 @@ TMP_FILE="${CACHE_FILE}.tmp.$$"
 
 mkdir -p "$CACHE_DIR"
 if ! mkdir "$LOCK_DIR" 2>/dev/null; then
-	exit 0
+	old_pid="$(cat "$UPDATING_FLAG" 2>/dev/null)"
+	if [ -n "$old_pid" ] && [ ! -d "/proc/$old_pid" ]; then
+		rm -rf "$LOCK_DIR" "$UPDATING_FLAG" >/dev/null 2>&1
+		mkdir "$LOCK_DIR" 2>/dev/null || exit 0
+	else
+		exit 0
+	fi
 fi
 trap 'rm -rf "$LOCK_DIR" "$UPDATING_FLAG" "$TMP_FILE"' EXIT INT TERM
-touch "$UPDATING_FLAG"
+printf '%s\n' "$$" > "$UPDATING_FLAG"
 
 safe_int() {
 	case "${1:-}" in
@@ -72,7 +78,8 @@ probe_json() {
 probe_run() {
 	_url="$1"
 	_mode="$2"
-	/usr/share/clashoo/net/access_check.sh "$_url" "$_mode" 2>/dev/null || true
+	# nice + ionice：探测 IO/CPU 都低优先级，避免抢占 LuCI dispatcher
+	nice -n 19 /usr/share/clashoo/net/access_check.sh "$_url" "$_mode" 2>/dev/null || true
 }
 
 has_wan_route() {
@@ -88,11 +95,39 @@ udp_mode="$(uci -q get clashoo.config.udp_mode)"
 [ -z "$udp_mode" ] && udp_mode="$tcp_mode"
 updated_at="$(date +%s)"
 
+proxy_listening() {
+	# 检测 mixed-port 是否在 LISTEN（clashoo 未运行时立即标 proxy down，避免显示假绿）
+	if command -v ss >/dev/null 2>&1; then
+		ss -tln 2>/dev/null | awk -v p=":${proxy_port}" '$0 ~ "LISTEN" && index($4, p) {found=1; exit} END{exit !found}'
+	elif command -v netstat >/dev/null 2>&1; then
+		netstat -tln 2>/dev/null | awk -v p=":${proxy_port}" '$0 ~ "LISTEN" && index($4, p) {found=1; exit} END{exit !found}'
+	else
+		return 0
+	fi
+}
+
 if has_wan_route; then
-	direct_bytedance="$(probe_run "http://www.qualcomm.cn/generate_204" "direct")"
-	direct_youtube="$(probe_run "https://www.youtube.com/generate_204" "direct")"
-	proxy_bytedance="$(probe_run "http://www.qualcomm.cn/generate_204" "proxy")"
-	proxy_youtube="$(probe_run "https://www.youtube.com/generate_204" "proxy")"
+	# 并行探测，把 CPU 抢占窗口从串行 2s+ 压缩到最慢一路的耗时
+	f_db="${TMP_FILE}.db"
+	f_dy="${TMP_FILE}.dy"
+	f_pb="${TMP_FILE}.pb"
+	f_py="${TMP_FILE}.py"
+	probe_run "https://www.douyin.com/generate_204" "direct" >"$f_db" &
+	probe_run "https://www.youtube.com/generate_204" "direct" >"$f_dy" &
+	if proxy_listening; then
+		probe_run "https://www.douyin.com/generate_204" "proxy"  >"$f_pb" &
+		probe_run "https://www.youtube.com/generate_204" "proxy"  >"$f_py" &
+	else
+		# 代理端口未监听（clashoo 已停止），跳过探测，直接标 down
+		echo "ok=0 attempts=1 loss=1 avg_ms=0 code=000" >"$f_pb"
+		echo "ok=0 attempts=1 loss=1 avg_ms=0 code=000" >"$f_py"
+	fi
+	wait
+	direct_bytedance="$(cat "$f_db" 2>/dev/null)"
+	direct_youtube="$(cat "$f_dy" 2>/dev/null)"
+	proxy_bytedance="$(cat "$f_pb" 2>/dev/null)"
+	proxy_youtube="$(cat "$f_py" 2>/dev/null)"
+	rm -f "$f_db" "$f_dy" "$f_pb" "$f_py"
 else
 	direct_bytedance="ok=0 attempts=1 loss=1 avg_ms=0 code=000"
 	direct_youtube="ok=0 attempts=1 loss=1 avg_ms=0 code=000"

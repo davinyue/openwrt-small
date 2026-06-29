@@ -11,12 +11,10 @@ BUILTIN_NFT_DIR="/usr/share/clashoo/nftables"
 GEOIP_CN_NFT="${BUILTIN_NFT_DIR}/geoip_cn.nft"
 GEOIP6_CN_NFT="${BUILTIN_NFT_DIR}/geoip6_cn.nft"
 LOCAL_OUTPUT_TABLE="clashoo_local"
-# PROXY_FWMARK: 入站 TPROXY 打的 mark，ip rule → table PROXY_ROUTE_TABLE 把包吸回本地给 mihomo 接收
-# CORE_ROUTING_MARK: mihomo 自身出站 SO_MARK（= mihomo config 的 routing-mark）
-# 两者必须不同值：否则 mihomo 出站会被 ip rule 误吸到 lo → network unreachable
-# 参考 openclash 同一设计思路（0x162 + 6666）。
-# 修改 CORE_ROUTING_MARK 需同步 /etc/init.d/clashoo 的 yml_change()
-# 与 /usr/share/clashoo/runtime/yum_change.sh 的 routing_mark_dec。
+# PROXY_FWMARK: inbound TPROXY mark, ip rule -> table PROXY_ROUTE_TABLE -> lo.
+# CORE_ROUTING_MARK: mihomo outbound SO_MARK (= routing-mark in config).
+# Must differ: otherwise mihomo egress is pulled to lo -> unreachable.
+# When changing CORE_ROUTING_MARK, also update yum_change.sh routing_mark_dec.
 PROXY_FWMARK="0x162"
 PROXY_ROUTE_TABLE="0x162"
 CORE_ROUTING_MARK="0x1a0a"  # = 6666
@@ -62,6 +60,14 @@ config_udp_mode() {
 
 config_access_control() {
 	uci_get clashoo.config.access_control
+}
+
+config_ipv4_dns_hijack() {
+	uci_get clashoo.config.ipv4_dns_hijack
+}
+
+config_ipv6_dns_hijack() {
+	uci_get clashoo.config.ipv6_dns_hijack
 }
 
 config_bypass_china() {
@@ -209,10 +215,28 @@ render_token_elements() {
 		}'
 }
 
+detect_coexist_fwmarks() {
+	# Merge co-installed proxy plugin fwmarks into bypass to avoid intercepting
+	# their traffic. Only when init.d exists (passwall:0x1 passwall2:0xff
+	# nikki:tproxy 0x80/tun 0x81 mask 0xff).
+	local marks=""
+	[ -x /etc/init.d/passwall ]  && marks="$marks 0x1"
+	[ -x /etc/init.d/passwall2 ] && marks="$marks 0xff"
+	if [ -x /etc/init.d/nikki ]; then
+		local nm
+		nm="$(uci -q get nikki.routing.tproxy_fw_mark) $(uci -q get nikki.routing.tun_fw_mark)"
+		[ -z "$(echo "$nm" | tr -d ' ')" ] && nm="0x80 0x81"
+		marks="$marks $nm"
+	fi
+	printf '%s\n' "$marks"
+}
+
 merge_fwmark_tokens() {
-	# 始终把 PROXY_FWMARK（入站 TPROXY mark）和 CORE_ROUTING_MARK（核心出站 mark）
-	# 合并进用户 bypass_fwmark 列表，保证这两个 mark 始终被 nft return 放行
-	printf '%s %s %s\n' "$1" "$PROXY_FWMARK" "$CORE_ROUTING_MARK" | tr ',\t' '  ' | awk '
+	# Always bypass PROXY_FWMARK (inbound TPROXY) and CORE_ROUTING_MARK (core egress)
+	# so nft never traps them. Also merge co-installed plugin fwmarks for coexistence.
+	local coexist
+	coexist="$(detect_coexist_fwmarks)"
+	printf '%s %s %s %s\n' "$1" "$PROXY_FWMARK" "$CORE_ROUTING_MARK" "$coexist" | tr ',\t' '  ' | awk '
 		BEGIN { first = 1 }
 		{
 			for (i = 1; i <= NF; i++) {
@@ -239,6 +263,17 @@ render_port_match() {
 	fi
 }
 
+# DNS hijack: redirect plaintext DNS (port 53) to local dnsmasq so hardcoded-DNS
+# devices still go through dnsmasq -> core. Gated on UCI IPv4/IPv6 toggles.
+# return 0: no output when both off, avoid set -e false-positive.
+render_dns_hijack() {
+	bool_enabled "$(config_ipv4_dns_hijack)" && \
+		printf '%s\n' 'meta nfproto ipv4 meta l4proto { tcp, udp } th dport 53 counter redirect to :53'
+	bool_enabled "$(config_ipv6_dns_hijack)" && \
+		printf '%s\n' 'meta nfproto ipv6 meta l4proto { tcp, udp } th dport 53 counter redirect to :53'
+	return 0
+}
+
 apply_local_output_rule() {
 	local redir_port fake_ip_range tcp_mode bypass_fwmark bypass_china
 	local fwmark_elements fwmark_rule china_set china_rule
@@ -259,12 +294,12 @@ apply_local_output_rule() {
 	# Only apply local output redirect when tcp_mode is redirect
 	[ "$tcp_mode" != "redirect" ] && return 0
 
-	# mihomo 自身流量 mark 放行（防本机出站被自己劫持形成死循环）
+	# bypass mihomo's own marks (prevent self-hijack -> dead loop)
 	fwmark_rule=""
 	fwmark_elements="$(merge_fwmark_tokens "$bypass_fwmark")"
 	[ -n "$fwmark_elements" ] && fwmark_rule="meta mark { ${fwmark_elements} } return"
 
-	# 国内 IP 旁路（复用 /usr/share/clashoo/nftables/geoip_cn.nft 的 clashoo_china set）
+	# CN IP bypass (uses clashoo_china set from geoip_cn.nft)
 	china_set=""
 	china_rule=""
 	if bool_enabled "$bypass_china" && [ -s "$GEOIP_CN_NFT" ]; then
@@ -372,11 +407,17 @@ generate_rules() {
 
 	: > "$OUTPUT_RULES"
 
-	# TCP rules: redirect or tproxy (tun mode needs no nftables rule)
+	
+# DNS hijack rules go atop DSTNAT_RULES: must run for all TCP modes
+		# (redirect/tproxy/tun) and BEFORE proxy redirect rules so port 53 is not stolen.
+	render_dns_hijack > "$DSTNAT_RULES"
+
+	
+# TCP rules: redirect mode appends proxy redirect; tproxy/tun skip this chain
 	case "$tcp_mode" in
 		redirect)
 			tcp_match="$(render_port_match tcp "$proxy_tcp_dport")"
-			cat > "$DSTNAT_RULES" <<EOF
+			cat >> "$DSTNAT_RULES" <<EOF
 ip daddr @clashoo_localnetwork return
 $( bool_enabled "$bypass_china" && printf '%s\n' 'ip6 daddr @clashoo_china6 return' )
 $( bool_enabled "$bypass_china" && printf '%s\n' 'ip daddr @clashoo_china return' )
@@ -387,13 +428,6 @@ $( [ -n "$dscp_elements" ] && printf '%s\n' "ip6 dscp { ${dscp_elements} } retur
 $( [ -n "$fwmark_elements" ] && printf '%s\n' "meta mark { ${fwmark_elements} } return" )
 ${tcp_match} redirect to :${redir_port}
 EOF
-			;;
-		tproxy)
-			: > "$DSTNAT_RULES"
-			;;
-		*)
-			# tun or unset: no TCP nftables rules
-			: > "$DSTNAT_RULES"
 			;;
 	esac
 

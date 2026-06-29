@@ -25,6 +25,50 @@ local function is_finded(e)
 	return luci.sys.exec(string.format('type -t -p "%s" -p "/usr/libexec/%s" 2>/dev/null', e, e)) ~= ""
 end
 
+local function is_js_luci()
+	return luci.sys.call('[ -f "/www/luci-static/resources/uci.js" ]') == 0
+end
+
+-- 保存并应用行为
+local function apply_redirect(m)
+	local tmp_uci_file = "/etc/config/" .. "shadowsocksr" .. "_redirect"
+	if m.redirect and m.redirect ~= "" then
+		if nixio.fs.access(tmp_uci_file) then
+			local redirect
+			for line in io.lines(tmp_uci_file) do
+				redirect = line:match("option%s+url%s+['\"]([^'\"]+)['\"]")
+				if redirect and redirect ~= "" then break end
+			end
+			if redirect and redirect ~= "" then
+				luci.sys.call("/bin/rm -f " .. tmp_uci_file)
+				luci.http.redirect(redirect)
+			end
+		else
+			nixio.fs.writefile(tmp_uci_file, "config redirect\n")
+		end
+		m.on_after_save = function(self)
+			local redirect = self.redirect
+			if redirect and redirect ~= "" then
+				m.uci:set("shadowsocksr" .. "_redirect", "@redirect[0]", "url", redirect)
+			end
+		end
+	else
+		luci.sys.call("/bin/rm -f " .. tmp_uci_file)
+	end
+end
+
+local function set_apply_on_parse(map)
+	if not map then return end
+	if is_js_luci() then
+		apply_redirect(map)
+		local old = map.on_after_save
+		map.on_after_save = function(self)
+			if old then old(self) end
+			-- map:set("@global[0]", "timestamp", os.time())
+		end
+	end
+end
+
 local function trim(text)
 	if not text or text == "" then
 		return ""
@@ -277,18 +321,22 @@ local function migrate_legacy_subscribe_urls()
 	for index, url in ipairs(legacy_urls) do
 		local trimmed = trim(url)
 		if trimmed ~= "" then
-			local sid = uci:add("shadowsocksr", "server_subscribe_item")
-			if sid then
-				uci:set("shadowsocksr", sid, "enabled", "1")
-				uci:set("shadowsocksr", sid, "alias", string.format("Subscribe %d", index))
-				uci:set("shadowsocksr", sid, "url", trimmed)
+			local sid_output = luci.sys.exec("uci add shadowsocksr server_subscribe_item")
+			local sid = sid_output:match("%S+")
+			if sid and sid ~= "" then
+				local escaped_sid = luci.util.shellquote(sid)
+				local alias = string.format("Subscribe %d", index)
+				local escaped_alias = luci.util.shellquote(alias)
+				local escaped_url = luci.util.shellquote(trimmed)
+				luci.sys.call("uci set shadowsocksr." .. escaped_sid .. ".enabled=1")
+				luci.sys.call("uci set shadowsocksr." .. escaped_sid .. ".alias=" .. escaped_alias)
+				luci.sys.call("uci set shadowsocksr." .. escaped_sid .. ".url=" .. escaped_url)
 			end
 		end
 	end
 
-	uci:delete("shadowsocksr", subscribe_sid, "subscribe_url")
-	uci:save("shadowsocksr")
-	uci:commit("shadowsocksr")
+	luci.sys.call("uci delete shadowsocksr." .. subscribe_sid .. ".subscribe_url")
+	luci.sys.call("uci commit shadowsocksr")
 end
 
 local function clash_host_port(clash_url)
@@ -410,6 +458,7 @@ o.remove = function() end
 
 o = s:option(Value, "filter_words", translate("Subscribe Filter Words"))
 o.rmempty = true
+o.default = "过期/重置/套餐/剩余/网址/QQ群/官网/防失联/回国"
 o.description = translate("Filter Words splited by /")
 o:depends("_subscribe_advanced_toggle", "1")
 preserve_when_hidden(o, "_subscribe_advanced_toggle", "1")
@@ -496,6 +545,26 @@ if has_mihomo then
 	o = s:option(DummyValue, "_upload_clash_yaml", translate("Upload Custom YAML File"))
 	o.template = "shadowsocksr/clash_yaml_upload"
 	o.description = translate("Upload a custom Clash/Mihomo YAML file. The file will be preprocessed and saved as a local Clash node.")
+
+	o = s:option(Flag, "sub_convert", translate("Subscribe Convert Online"))
+	o.description = translate("Convert subscriptions to Clash/Mihomo YAML with a subscription template URL.")
+	o.default = "0"
+	o.rmempty = false
+
+	o = s:option(Value, "convert_address", translate("Convert Address"))
+	o.default = "https://api.asailor.org/sub"
+	o.placeholder = "https://api.asailor.org/sub"
+	o:value("https://api.asailor.org/sub", "api.asailor.org")
+	o:value("https://api.wcc.best/sub", "api.wcc.best")
+	o.rmempty = true
+	o:depends("sub_convert", "1")
+
+	o = s:option(Value, "template_url", translate("Subscribe Template URL"))
+	o.default = "https://raw.githubusercontent.com/Fzlwhyc/OpenClash-Templates/main//fzlwhyc-openclash.ini"
+	o.placeholder = "https://raw.githubusercontent.com/Fzlwhyc/OpenClash-Templates/main//fzlwhyc-openclash.ini"
+	o:value("https://raw.githubusercontent.com/Fzlwhyc/OpenClash-Templates/main//fzlwhyc-openclash.ini", "Fzlwhyc")
+	o.rmempty = true
+	o:depends("sub_convert", "1")
 end
 
 s:append(cbi.Template("shadowsocksr/subscribe_schedule_compact"))
@@ -504,8 +573,9 @@ s = m:section(TypedSection, "server_subscribe_item", translate("Subscribe URL"))
 s.anonymous = true
 s.addremove = true
 s.sortable = true
-s.template = "cbi/tblsection"
-s.template_addremove = "shadowsocksr/subscribe_actions_footer"
+s.template = "shadowsocksr/subscribe_actions_footer"
+--s.template = "cbi/tblsection"
+--s.template_addremove = "shadowsocksr/subscribe_actions_footer"
 s.description = translate("Manage multiple subscribe URLs, including Clash subscriptions. Only enabled entries are included when updating all subscriptions.")
 
 o = s:option(Flag, "enabled", translate("Enable"))
@@ -532,6 +602,7 @@ s.anonymous = true
 s.addremove = true
 s.description = translate("Node order can be dragged with the mouse and takes effect immediately. The automatic switch order of server nodes is consistent with the node order in the table.")
 s.template = "shadowsocksr/server_table"
+set_apply_on_parse(m)
 s:append(cbi.Template("shadowsocksr/optimize_cbi_ui"))
 s.extedit = luci.dispatcher.build_url("admin", "services", "shadowsocksr", "servers", "%s")
 
@@ -584,11 +655,40 @@ s.server_first_index = server_first_index
 s.server_last_index = server_last_index
 s.server_base_url = luci.dispatcher.build_url("admin", "services", "shadowsocksr", "servers")
 
-function s.create(...)
-	local sid = TypedSection.create(...)
+function s.create(self, ...)
+	local used_sid = {}
+	local next_sid = 1
+
+	self.map.uci:foreach(self.config, self.sectiontype, function(s)
+		local num = s[".name"]:match("^cfg(%x%x)")
+		if num then
+			local n = tonumber(num, 16)
+			if n then
+				used_sid[n] = true
+			end
+		end
+	end)
+
+	local function get_next_sid()
+		while used_sid[next_sid] do
+			next_sid = next_sid + 1
+		end
+		used_sid[next_sid] = true
+		return next_sid
+	end
+
+	local sid = TypedSection.create(self, ...)	
 	if sid then
-		luci.http.redirect(s.extedit % sid)
-		return
+		local suffix = sid:sub(-4)
+		self.map.uci:delete(self.config, sid)
+		local id = get_next_sid()
+		local newsid = string.format("cfg%02x%s", id, suffix)
+		local success = self.map.uci:section(self.config, self.sectiontype, newsid)
+		if success then
+			--self.map.uci:save(self.config)
+			luci.http.redirect(self.extedit % newsid)
+			return
+		end
 	end
 end
 
@@ -669,9 +769,9 @@ node.render = function(self, section, scope)
 	Button.render(self, section, scope)
 end
 node.write = function(self, section)
-	uci:set("shadowsocksr", '@global[0]', 'global_server', section)
-	uci:save("shadowsocksr")
-	uci:commit("shadowsocksr")
+	local safe_section = luci.util.shellquote(section)
+	local cmd = string.format("uci set shadowsocksr.@global[0].global_server=%s && uci commit shadowsocksr", safe_section)
+	luci.sys.call(cmd)
 	luci.http.redirect(luci.dispatcher.build_url("admin", "services", "shadowsocksr", "restart"))
 end
 

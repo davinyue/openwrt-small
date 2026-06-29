@@ -30,7 +30,7 @@ function getThemeClass() {
 }
 
 var CSS = [
-  '.cl-wrap{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",sans-serif;--cl-card-border:rgba(128,128,128,.22);--cl-card-bg:rgba(128,128,128,.08);--cl-card-shadow:0 4px 12px rgba(0,0,0,.08);--cl-muted:rgba(92,102,120,.72);--cl-primary:rgba(0,122,255,.8);--cl-primary-border:rgba(0,122,255,.45);--cl-primary-soft:rgba(0,122,255,.08)}',
+  '.cl-wrap{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",sans-serif;--cl-card-border:rgba(128,128,128,.22);--cl-card-bg:rgba(128,128,128,.08);--cl-card-shadow:0 4px 12px rgba(0,0,0,.08);--cl-muted:rgba(74,85,104,.9);--cl-meta:var(--cl-muted);--cl-primary:rgba(0,122,255,.8);--cl-primary-border:rgba(0,122,255,.45);--cl-primary-soft:rgba(0,122,255,.08)}',
   '.cl-tabs{display:flex;border-bottom:2px solid rgba(128,128,128,.15);margin-bottom:18px}',
   '.cl-tab{padding:10px 20px;cursor:pointer;font-size:13px;opacity:.55;border-bottom:2px solid transparent;margin-bottom:-2px;transition:opacity .15s}',
   '.cl-tab.active{opacity:1;border-bottom-color:currentColor;font-weight:600}',
@@ -41,12 +41,12 @@ var CSS = [
   '.cl-sub-list th:nth-child(2),.cl-sub-list td:nth-child(2){width:72px}',
   '.cl-sub-list th:nth-child(3),.cl-sub-list td:nth-child(3){width:220px;text-align:right;white-space:nowrap}',
   '.cl-sub-url{border:1px solid rgba(128,128,128,.3);border-radius:6px;padding:8px 10px;width:100%;box-sizing:border-box;font-size:13px;margin-bottom:8px}',
-  '.cl-sub-traffic{margin-top:4px;font-size:11px;color:var(--cl-muted,#888)}',
+  '.cl-sub-traffic{margin-top:4px;font-size:11px;color:var(--cl-meta,var(--cl-muted,#666))}',
   '.cl-sub-traffic-bar{height:4px;border-radius:2px;background:rgba(128,128,128,.18);margin-top:3px;overflow:hidden}',
   '.cl-sub-traffic-fill{height:100%;border-radius:2px;background:var(--primary-color,#0b68dd);transition:width .3s}',
   '.cl-sub-traffic-fill.cl-traffic-warn{background:#f59e0b}',
   '.cl-sub-traffic-fill.cl-traffic-danger{background:#ef4444}',
-  '.cl-sub-expire{font-size:11px;color:var(--cl-muted,#888);margin-top:2px}',
+  '.cl-sub-expire{font-size:11px;color:var(--cl-meta,var(--cl-muted,#666));margin-top:2px}',
   '.cl-sub-expire.cl-expire-soon{color:#f59e0b}',
   '.cl-btn-sm{padding:4px 10px;font-size:12px;border-radius:4px;cursor:pointer}',
   '.cl-section{margin-bottom:24px}',
@@ -61,7 +61,7 @@ var CSS = [
   '.cl-file-name-text{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
   '.cl-sb-file-name{display:flex;align-items:center;gap:8px;min-width:0;white-space:normal !important;overflow:visible !important;text-overflow:clip !important}',
   '.cl-sb-file-name .cl-file-name-text{min-width:0}',
-  '.cl-file-size{font-size:12px;color:var(--cl-muted);white-space:nowrap}',
+  '.cl-file-size{font-size:12px;color:var(--cl-meta);white-space:nowrap}',
   '.cl-file-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}',
   '.cl-rewrite-wrap{max-width:760px;padding:0;border:0;background:transparent;box-shadow:none}',
   '.cl-rewrite-group{display:flex;flex-direction:column;gap:8px}',
@@ -77,8 +77,44 @@ var CSS = [
   '.cl-btn-delete:hover{background:rgba(var(--primary-rgb,0,122,255),.16);border-color:rgba(var(--primary-rgb,0,122,255),.4);color:var(--cl-primary)}',
   '.cl-btn-generate-switch{box-shadow:0 4px 10px rgba(0,0,128,.2)}',
   '.cl-save-bar{display:flex;gap:8px;margin-top:14px;padding-top:12px;border-top:1px solid rgba(128,128,128,.15)}',
+  '.cl-dns-auto{display:flex;flex-direction:column;gap:8px;max-width:640px}',
+  '.cl-dns-auto-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}',
+  '.cl-dns-auto-status{font-size:12px;color:var(--cl-meta);line-height:1.55}',
+  '.cl-dns-auto-result{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:6px 14px;padding:8px 10px;border:1px solid var(--cl-card-border);border-radius:8px;background:var(--cl-card-bg);color:var(--cl-meta);font-size:12px;line-height:1.5}',
+  '.cl-dns-auto-result b{font-weight:700;opacity:.72;margin-right:4px}',
+  '.cl-sub-schedule{display:flex;flex-direction:column;gap:5px;max-width:760px;box-sizing:border-box;margin:2px 0 14px;padding:8px 2px 4px 6px}',
+  '.cl-sub-schedule-row{display:flex;align-items:center;gap:10px;flex-wrap:nowrap}',
+  '.cl-sub-schedule-toggle{display:inline-flex;align-items:center;gap:8px;height:30px;font-size:13px;font-weight:600;line-height:30px;cursor:pointer;white-space:nowrap}',
+  '.cl-sub-schedule-toggle input[type="checkbox"]{appearance:none!important;-webkit-appearance:none!important;position:static!important;top:auto!important;bottom:auto!important;width:16px!important;height:16px!important;min-width:16px!important;min-height:16px!important;margin:0!important;padding:0!important;border:1px solid rgba(128,128,128,.7)!important;border-radius:3px!important;background:transparent!important;box-shadow:none!important;vertical-align:middle!important;flex:0 0 16px}',
+  '.cl-sub-schedule-toggle input[type="checkbox"]:checked{border-color:var(--cl-primary)!important;background:var(--cl-primary) url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 16 16%27%3E%3Cpath fill=%27none%27 stroke=%27white%27 stroke-width=%272.2%27 d=%27M3 8l3 3 7-7%27/%3E%3C/svg%3E") center/12px 12px no-repeat!important}',
+  '.cl-sub-schedule-status{font-size:11px;color:var(--cl-meta);line-height:1.45}',
+  '.cl-sub-schedule-interval{display:inline-flex;align-items:center;gap:6px;height:30px;font-size:12px;line-height:30px;color:var(--cl-meta);white-space:nowrap}',
+  '.cl-sub-schedule-interval input[type="number"]{width:52px!important;height:30px!important;min-height:30px!important;box-sizing:border-box!important;margin:0!important;padding:2px 6px!important;line-height:24px!important;text-align:center}',
+  '.cl-sub-schedule-row .btn,.cl-sub-schedule-row .cbi-button{height:30px!important;min-height:30px!important;box-sizing:border-box!important;padding:3px 10px!important;line-height:22px!important}',
+  '.cl-sub-schedule-row :disabled{cursor:not-allowed;opacity:.62}',
+  '.cl-section-toggle{font-size:12px;cursor:pointer;flex-shrink:0;margin-left:auto}',
+  '.cl-collapsible.cl-closed>*:not(h3){display:none!important}',
+  /* 折叠标题：通过 .clashoo-section-header wrapper class 上色，不裸改 LuCI 默认 h3 样式 */
+  '.clashoo-section-header{display:flex!important;align-items:center;gap:8px;position:relative}',
+  '.clashoo-section-header::before{content:"";flex:0 0 3px;width:3px;height:14px;border-radius:2px;background:var(--primary-color,var(--cl-primary,#007aff))}',
+  '.cl-wrap .cbi-section-remove.right{background:transparent!important}',
   '.cl-json-editor{width:100%;height:340px;font-family:monospace;font-size:11px;border:1px solid rgba(128,128,128,.25);border-radius:8px;padding:10px;box-sizing:border-box;resize:vertical;background:rgba(0,0,0,.02)}',
   '.cl-editor-hdr{display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:12px;font-weight:600}',
+  /* CodeMirror 编辑器外观（小文件套 CM，大文件回退 cl-json-editor textarea）*/
+  '.cl-cm-wrap{width:100%}',
+  '.cl-cm-host .CodeMirror{height:340px;border:1px solid rgba(128,128,128,.25);border-radius:8px;font-size:12px;font-family:monospace}',
+  '.cl-cm-host.cl-cm-dark .CodeMirror{background:#1e2228;color:#d4d4d4}',
+  '.cl-cm-host.cl-cm-dark .CodeMirror-gutters{background:#23282f;border-right:1px solid rgba(255,255,255,.08)}',
+  '.cl-cm-host.cl-cm-dark .CodeMirror-linenumber{color:#5c6370}',
+  '.cl-cm-host.cl-cm-dark .CodeMirror-cursor{border-left-color:#d4d4d4}',
+  '.cl-cm-host.cl-cm-dark .CodeMirror-selected{background:rgba(255,255,255,.12)}',
+  '.cl-cm-host.cl-cm-dark .CodeMirror-activeline-background{background:rgba(255,255,255,.04)}',
+  '.cl-cm-host.cl-cm-dark .cm-string{color:#ce9178}',
+  '.cl-cm-host.cl-cm-dark .cm-number{color:#b5cea8}',
+  '.cl-cm-host.cl-cm-dark .cm-keyword,.cl-cm-host.cl-cm-dark .cm-atom{color:#569cd6}',
+  '.cl-cm-host.cl-cm-dark .cm-property,.cl-cm-host.cl-cm-dark .cm-attribute{color:#9cdcfe}',
+  '.cl-cm-host.cl-cm-dark .cm-comment{color:#6a9955}',
+  '.cl-cm-host.cl-cm-dark .cm-meta,.cl-cm-host.cl-cm-dark .cm-def{color:#dcdcaa}',
   '.cl-active-badge{font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;background:rgba(var(--primary-rgb,0,122,255),.12);color:var(--cl-primary)}',
   '.cl-hint{font-size:11px;opacity:.45;margin-left:auto}',
   /* hide auto-generated section IDs in TypedSection */
@@ -94,15 +130,25 @@ var CSS = [
   '.cl-wrap .cbi-section>h3,.cl-wrap .cbi-value-title,.cl-wrap .cbi-section-descr,.cl-wrap .cbi-value-helptext{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",sans-serif !important}',
   '.cl-wrap .cbi-input-text,.cl-wrap .cbi-input-select,.cl-wrap select,.cl-wrap input,.cl-wrap textarea,.cl-wrap .btn,.cl-wrap .cbi-button{font-size:13px !important;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",sans-serif !important}',
   '.cl-wrap .btn,.cl-wrap .cbi-button{padding:4px 10px;line-height:1.35}',
-  '@media(prefers-color-scheme:dark){.cl-wrap{--cl-card-border:rgba(255,255,255,.14);--cl-card-bg:rgba(255,255,255,.04);--cl-card-shadow:0 4px 12px rgba(0,0,0,.28);--cl-muted:rgba(220,228,244,.58)}}',
-  '@media(max-width:680px){.cl-sub-list.cl-sb-list td:first-child{white-space:normal;overflow:visible;text-overflow:clip}}',
-  '@media(max-width:680px){.cl-form-wrap{max-width:100%}}'
+  '.cl-sb-list td,.cl-sb-size{color:var(--cl-meta)}',
+  '@media(prefers-color-scheme:dark){.cl-wrap{--cl-card-border:rgba(255,255,255,.14);--cl-card-bg:rgba(255,255,255,.04);--cl-card-shadow:0 4px 12px rgba(0,0,0,.28);--cl-muted:rgba(220,228,244,.58);--cl-meta:rgba(220,228,244,.72)}}',
+  '.cl-theme-dark{--cl-card-border:rgba(255,255,255,.14);--cl-card-bg:rgba(255,255,255,.04);--cl-card-shadow:0 4px 12px rgba(0,0,0,.28);--cl-muted:rgba(220,228,244,.58);--cl-meta:rgba(220,228,244,.72)}',
+  '@media(max-width:680px){.cl-wrap{--cl-meta:#4b5870}.cl-sub-list.cl-sb-list td:first-child{white-space:normal;overflow:visible;text-overflow:clip}}',
+  '@media(max-width:680px){.cl-file-name-text,.cl-file-size,.cl-sub-traffic,.cl-sub-expire,.cl-sb-list td,.cl-sb-size,.cl-dns-auto-status,.cl-dns-auto-result{color:#4b5870!important}}',
+  '@media(max-width:680px){html body .cl-wrap .cl-file-item .cl-file-meta .cl-file-size{color:#4b5870!important}}',
+  '@media(max-width:680px){.cl-form-wrap{max-width:100%}}',
+  '@media(max-width:680px){.cl-dns-auto,.cl-dns-auto-result{max-width:100%;width:100%;box-sizing:border-box}.cl-dns-auto-result{grid-template-columns:1fr}}',
+  '@media(max-width:680px){.cl-sub-schedule{width:100%;padding:8px 0 4px 4px}.cl-sub-schedule-row{gap:8px;flex-wrap:wrap}.cl-sub-schedule-toggle{width:100%}.cl-sub-schedule-interval{gap:5px}.cl-sub-schedule-row .cbi-button-action{white-space:nowrap}}'
 ].join('');
 
 var callListSubs      = rpc.declare({ object: 'luci.clashoo', method: 'list_subscriptions',  expect: {} });
 var callListDir       = rpc.declare({ object: 'luci.clashoo', method: 'list_dir_files',      params: ['type'], expect: {} });
 var callDownloadSubs  = rpc.declare({ object: 'luci.clashoo', method: 'download_subs',       expect: {} });
+var callDownloadSubsStatus = rpc.declare({ object: 'luci.clashoo', method: 'download_subs_status', expect: {} });
 var callUpdateSub     = rpc.declare({ object: 'luci.clashoo', method: 'update_sub',          params: ['name'], expect: {} });
+var callSubscriptionUpdateAll = rpc.declare({ object: 'luci.clashoo', method: 'subscription_update_all', expect: {} });
+var callSubscriptionUpdateStatus = rpc.declare({ object: 'luci.clashoo', method: 'subscription_update_status', expect: {} });
+var callSetSubscriptionUpdateSchedule = rpc.declare({ object: 'luci.clashoo', method: 'set_subscription_update_schedule', params: ['enabled', 'interval'], expect: {} });
 var callSetConfig     = rpc.declare({ object: 'luci.clashoo', method: 'set_config',          params: ['name'], expect: {} });
 var callDeleteCfg     = rpc.declare({ object: 'luci.clashoo', method: 'delete_config',       params: ['name', 'type'], expect: {} });
 var callUploadConfig  = rpc.declare({ object: 'luci.clashoo', method: 'upload_config',       params: ['name', 'content', 'type'], expect: {} });
@@ -115,7 +161,9 @@ var callApplyTplUrl   = rpc.declare({ object: 'luci.clashoo', method: 'apply_tem
 var callMigrateSbProfile = rpc.declare({ object: 'luci.clashoo', method: 'migrate_singbox_profile', params: ['name'], expect: {} });
 var callSmartModelStatus = rpc.declare({ object: 'luci.clashoo', method: 'smart_model_status',  expect: {} });
 var callSmartUpgradeLgbm = rpc.declare({ object: 'luci.clashoo', method: 'smart_upgrade_lgbm',  expect: {} });
+var callSmartUpgradeLgbmStatus = rpc.declare({ object: 'luci.clashoo', method: 'smart_upgrade_lgbm_status', expect: {} });
 var callSmartFlushCache  = rpc.declare({ object: 'luci.clashoo', method: 'smart_flush_cache',   expect: {} });
+var callDetectPrimaryGroup = rpc.declare({ object: 'luci.clashoo', method: 'detect_primary_group', expect: {} });
 
 function fastResolve(promise, timeoutMs, fallback) {
   var t = new Promise(function (resolve) {
@@ -129,9 +177,157 @@ function loadUiState() {
     return {
       core_type:      uci.get('clashoo', 'config', 'core_type') || 'mihomo',
       subscribe_url:  uci.get('clashoo', 'config', 'subscribe_url') || '',
-      config_name:    uci.get('clashoo', 'config', 'config_name') || ''
+      config_name:    uci.get('clashoo', 'config', 'config_name') || '',
+      sub_ua:         uci.get('clashoo', 'config', 'sub_ua') || '',
+      auto_subscription_update: uci.get('clashoo', 'config', 'auto_subscription_update') || '0',
+      subscription_update_interval: uci.get('clashoo', 'config', 'subscription_update_interval') || '72'
     };
   });
+}
+
+function buildSubscriptionSchedule(uiData, initialStatus) {
+  var enabled = E('input', {
+    type: 'checkbox',
+    checked: uiData.auto_subscription_update === '1' ? '' : null
+  });
+  var interval = E('input', {
+    type: 'number',
+    min: '1',
+    max: '8760',
+    value: uiData.subscription_update_interval || '72'
+  });
+  var statusEl = E('div', { 'class': 'cl-sub-schedule-status' });
+  var saveBtn, runBtn, timer;
+
+  function syncScheduleState() {
+    interval.disabled = !enabled.checked;
+  }
+
+  enabled.addEventListener('change', syncScheduleState);
+
+  function renderStatus(st) {
+    st = st || {};
+    if (st.running) {
+      statusEl.textContent = '正在更新全部订阅…';
+      return;
+    }
+    if (!st.last_run) {
+      statusEl.textContent = '仅覆盖已记录来源链接的订阅，不会生成重复文件。';
+      return;
+    }
+    var when = new Date(st.last_run * 1000).toLocaleString();
+    statusEl.textContent = '上次执行：' + when + '；更新 ' + (st.updated || 0) +
+      '，未变化 ' + (st.unchanged || 0) + '，失败 ' + (st.failed || 0) +
+      '，跳过 ' + (st.skipped || 0) + '。';
+  }
+
+  function pollStatus() {
+    L.resolveDefault(callSubscriptionUpdateStatus(), {}).then(function (st) {
+      renderStatus(st);
+      if (!st.running) {
+        if (timer) clearInterval(timer);
+        timer = null;
+        runBtn.disabled = false;
+        runBtn.textContent = '立即更新全部';
+      }
+    });
+  }
+
+  saveBtn = E('button', {
+    'class': 'btn cbi-button cl-btn-sm',
+    click: function () {
+      var hours = parseInt(interval.value, 10);
+      if (!hours || hours < 1 || hours > 8760) {
+        ui.addNotification(null, E('p', '更新间隔必须为 1 到 8760 小时'));
+        return;
+      }
+      saveBtn.disabled = true;
+      L.resolveDefault(callSetSubscriptionUpdateSchedule(enabled.checked ? '1' : '0', String(hours)), {}).then(function (r) {
+        saveBtn.disabled = false;
+        ui.addNotification(null, E('p', r && r.success ? '定时更新设置已保存' : ('保存失败: ' + ((r && r.message) || ''))));
+      });
+    }
+  }, '保存');
+
+  runBtn = E('button', {
+    'class': 'btn cbi-button-action cl-btn-sm',
+    click: function () {
+      runBtn.disabled = true;
+      runBtn.textContent = '更新中…';
+      L.resolveDefault(callSubscriptionUpdateAll(), {}).then(function (r) {
+        if (!r || (!r.success && !r.running)) {
+          runBtn.disabled = false;
+          runBtn.textContent = '立即更新全部';
+          ui.addNotification(null, E('p', '启动失败: ' + ((r && r.message) || '')));
+          return;
+        }
+        renderStatus({ running: true });
+        timer = setInterval(pollStatus, 2000);
+        setTimeout(pollStatus, 500);
+      });
+    }
+  }, '立即更新全部');
+
+  syncScheduleState();
+  renderStatus(initialStatus);
+  return E('div', { 'class': 'cl-sub-schedule' }, [
+    E('div', { 'class': 'cl-sub-schedule-row' }, [
+      E('label', { 'class': 'cl-sub-schedule-toggle' }, [enabled, E('span', {}, '定时更新订阅')]),
+      E('div', { 'class': 'cl-sub-schedule-interval' }, [
+        E('span', {}, '每'),
+        interval,
+        E('span', {}, '小时')
+      ]),
+      saveBtn,
+      runBtn
+    ]),
+    statusEl
+  ]);
+}
+
+var SUB_UA_PRESETS = ['', 'clash', 'clash.meta', 'mihomo'];
+
+// 构造 UA 选择器：select 预设 + custom 切到 input
+// 返回 { wrap, getValue() }
+function buildUaPicker(initialValue) {
+  var presets   = SUB_UA_PRESETS;
+  var isPreset  = presets.indexOf(initialValue) !== -1;
+  var customVal = (!initialValue || isPreset) ? '' : initialValue;
+  var pickerVal = isPreset ? initialValue : (initialValue ? '__custom__' : '');
+
+  var customInput = E('input', {
+    'class': 'cl-sub-url',
+    type: 'text',
+    placeholder: '自定义 User-Agent',
+    value: customVal,
+    style: 'margin-top:0;' + (pickerVal === '__custom__' ? '' : 'display:none')
+  });
+
+  var selectEl = E('select', {
+    'class': 'cbi-input-select cl-sub-url',
+    style: 'margin-top:0',
+    change: function (ev) {
+      customInput.style.display = (ev.target.value === '__custom__') ? '' : 'none';
+      if (ev.target.value === '__custom__') customInput.focus();
+    }
+  }, [
+    E('option', { value: '',           selected: pickerVal === ''           ? '' : null }, '默认'),
+    E('option', { value: 'clash',      selected: pickerVal === 'clash'      ? '' : null }, 'clash'),
+    E('option', { value: 'clash.meta', selected: pickerVal === 'clash.meta' ? '' : null }, 'clash.meta'),
+    E('option', { value: 'mihomo',     selected: pickerVal === 'mihomo'     ? '' : null }, 'mihomo'),
+    E('option', { value: '__custom__', selected: pickerVal === '__custom__' ? '' : null }, '自定义...')
+  ]);
+
+  return {
+    wrap: E('div', { 'class': 'cl-ua-picker', style: 'display:flex;flex-direction:column;gap:6px;margin-top:0' }, [
+      E('label', { style: 'font-size:12px;color:var(--text-secondary, #888)' }, '用户代理（UA）'),
+      selectEl, customInput,
+      E('div', { style: 'font-size:12px;color:var(--text-secondary, #888)' }, '不确定时保持默认。')
+    ]),
+    getValue: function () {
+      return selectEl.value === '__custom__' ? customInput.value.trim() : selectEl.value;
+    }
+  };
 }
 
 function readSavedTab(key, fallback, allowed) {
@@ -224,7 +420,8 @@ function saveCommitApplyMaybeReload(m, runningMsg, stoppedMsg) {
     .then(function (st) { return !!(st && st.running); })
     .catch(function () { return false; })
     .then(function (running) {
-      return m.save()
+      /* silent=true so the caller's catch reports validation errors once (no double popup) */
+      return m.save(null, true)
         .then(function () { return clashoo.commitConfig(); })
         .then(function () {
           return running ? clashoo.reload() : { success: true, skipped: true };
@@ -235,6 +432,176 @@ function saveCommitApplyMaybeReload(m, runningMsg, stoppedMsg) {
           window.setTimeout(function () { location.reload(); }, 300);
         });
     });
+}
+
+function dnsAutoSummaryNode(res) {
+  if (!res || !res.success)
+    return E('div', { 'class': 'cl-dns-auto-status' }, '暂无自动配置结果');
+  var elapsed = Math.max(0, parseInt(res.elapsed_ms || 0, 10));
+  var failed = parseInt(res.failed_count || 0, 10);
+  return E('div', { 'class': 'cl-dns-auto-result' }, [
+    E('span', [E('b', '国内'), res.nameserver || '-']),
+    E('span', [E('b', '代理'), res.proxy_nameserver || '-']),
+    E('span', [E('b', 'Fallback'), res.fallback || '-']),
+    E('span', [E('b', 'Bootstrap'), res.bootstrap || res.direct_nameserver || '-']),
+    E('span', [E('b', '耗时'), elapsed ? (elapsed / 1000).toFixed(1) + ' 秒' : '-']),
+    E('span', [E('b', '失败'), failed + ' 个候选'])
+  ]);
+}
+
+function dnsAutoResultMessage(res) {
+  if (!res || !res.success)
+    return (res && res.message) || 'DNS 自动配置失败';
+  return res.restarted
+    ? 'DNS 自动配置已应用，服务正在重启'
+    : 'DNS 自动配置已保存，服务未启动';
+}
+
+function storeDnsAutoResult(res) {
+  try {
+    res._saved_at = Date.now();
+    window.localStorage.setItem('clashoo.dns_auto.last', JSON.stringify(res));
+  } catch (e) {}
+}
+
+function readDnsAutoResult() {
+  try {
+    var raw = window.localStorage.getItem('clashoo.dns_auto.last') || '';
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function clearDnsAutoResult() {
+  try { window.localStorage.removeItem('clashoo.dns_auto.last'); } catch (e) {}
+}
+
+function setDnsAutoStatus(statusEl, nodeOrText) {
+  statusEl.textContent = '';
+  if (nodeOrText && nodeOrText.nodeType)
+    statusEl.appendChild(nodeOrText);
+  else
+    statusEl.textContent = nodeOrText || '';
+}
+
+function findCbiSection(root, title) {
+  var heads = root.querySelectorAll('.cbi-section > h3');
+  for (var i = 0; i < heads.length; i++) {
+    if ((heads[i].textContent || '').trim() === title)
+      return heads[i].parentNode;
+  }
+  return null;
+}
+
+function makeSectionCollapsible(root, title, open) {
+  var section = findCbiSection(root, title);
+  if (!section || section.classList.contains('cl-collapsible'))
+    return;
+  section.classList.add('cl-collapsible');
+  if (!open) section.classList.add('cl-closed');
+  var btn = E('button', {
+    'class': 'btn cbi-button cl-section-toggle',
+    click: function (ev) {
+      ev.preventDefault();
+      section.classList.toggle('cl-closed');
+      btn.textContent = section.classList.contains('cl-closed') ? '展开' : '折叠';
+    }
+  }, open ? '折叠' : '展开');
+  var h3 = section.querySelector('h3');
+  if (h3) {
+    h3.classList.add('clashoo-section-header');
+    h3.appendChild(btn);
+  }
+}
+
+/* ── CodeMirror 懒加载（资源打包在 luci-static/resources/cm/）── */
+var _cmLoad = null;
+function loadCodeMirror() {
+  if (_cmLoad) return _cmLoad;
+  _cmLoad = new Promise(function (resolve, reject) {
+    var base = L.resource('cm'), ver = '?v=20260520';
+    var link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = base + '/codemirror.css' + ver;
+    document.head.appendChild(link);
+    var inject = function (src) {
+      return new Promise(function (res, rej) {
+        var s = document.createElement('script');
+        s.src = src; s.async = false;
+        s.onload = res;
+        s.onerror = function () { rej(new Error('load failed: ' + src)); };
+        document.head.appendChild(s);
+      });
+    };
+    /* 核心先就位，mode/addon 注册在全局 CodeMirror 上 */
+    inject(base + '/codemirror.js' + ver)
+      .then(function () {
+        return Promise.all([
+          inject(base + '/mode/yaml.js' + ver),
+          inject(base + '/mode/javascript.js' + ver),
+          inject(base + '/addon/matchbrackets.js' + ver)
+        ]);
+      })
+      .then(function () {
+        if (window.CodeMirror) resolve();
+        else reject(new Error('CodeMirror not available'));
+      })
+      .catch(reject);
+  });
+  return _cmLoad;
+}
+
+/* CodeMirror for files ≤512KB; fallback to textarea for oversized or failed load */
+function createConfigEditor(mode) {
+  var LARGE = 512 * 1024;
+  var ta = E('textarea', {
+    'class': 'cl-json-editor',
+    placeholder: '选择配置文件后内容将显示在这里…'
+  });
+  var host = E('div', { 'class': 'cl-cm-host', style: 'display:none' });
+  var wrap = E('div', { 'class': 'cl-cm-wrap' }, [host, ta]);
+  var cm = null, usingCM = false;
+
+  function showTextarea(content) {
+    usingCM = false;
+    ta.value = content;
+    ta.style.display = '';
+    host.style.display = 'none';
+  }
+  function showCM(content) {
+    usingCM = true;
+    cm.setValue(content);
+    ta.style.display = 'none';
+    host.style.display = '';
+    setTimeout(function () { cm.refresh(); }, 0);
+  }
+
+  return {
+    el: wrap,
+    textarea: ta,
+    setValue: function (content) {
+      content = (content == null) ? '' : String(content);
+      if (content.length > LARGE) { showTextarea(content); return; }
+      if (cm) { showCM(content); return; }
+      loadCodeMirror().then(function () {
+        if (!cm && window.CodeMirror) {
+          cm = window.CodeMirror(host, {
+            value: '', mode: mode,
+            lineNumbers: true, matchBrackets: true,
+            lineWrapping: true, tabSize: 2, indentUnit: 2,
+            viewportMargin: 60
+          });
+          if (getThemeClass().indexOf('dark') >= 0)
+            host.classList.add('cl-cm-dark');
+        }
+        if (cm) showCM(content); else showTextarea(content);
+      }).catch(function () { showTextarea(content); });
+    },
+    getValue: function () {
+      return (usingCM && cm) ? cm.getValue() : ta.value;
+    }
+  };
 }
 
 return view.extend({
@@ -248,9 +615,10 @@ return view.extend({
       fastResolve(callListDir('2'), 1200, { files: [] }),
       fastResolve(callListDir('3'), 1200, { files: [] }),
       fastResolve(callListTemplates(), 1200, { files: [] }),
-      fastResolve(loadUiState(), 1200, { core_type: 'mihomo', subscribe_url: '', config_name: '' }),
+      fastResolve(loadUiState(), 1200, { core_type: 'mihomo', subscribe_url: '', config_name: '', sub_ua: '' }),
       fastResolve(clashoo.listSingboxProfiles(), 1200, { profiles: [], active: '' }),
-      fastResolve(callSmartModelStatus(), 1500, { has_model: false, version: '' })
+      fastResolve(callSmartModelStatus(), 1500, { has_model: false, version: '' }),
+      fastResolve(callSubscriptionUpdateStatus(), 1200, {})
     ]);
   },
 
@@ -261,9 +629,10 @@ return view.extend({
     var upFiles    = (data[2] && data[2].files) || [];
     var customFiles= (data[3] && data[3].files) || [];
     var tplFiles   = (data[4] && data[4].files) || [];
-    var uiData     = data[5] || { core_type: 'mihomo', subscribe_url: '', config_name: '' };
+    var uiData     = data[5] || { core_type: 'mihomo', subscribe_url: '', config_name: '', sub_ua: '' };
     var sbData          = data[6] || { profiles: [], active: '' };
     var smartModelData  = data[7] || { has_model: false, version: '' };
+    var subscriptionUpdateStatus = data[8] || {};
     var coreType   = uiData.core_type || 'mihomo';
 
     if (!document.getElementById('cl-css')) {
@@ -275,13 +644,13 @@ return view.extend({
       var link = document.createElement('link');
       link.id = 'cl-css-ext';
       link.rel = 'stylesheet';
-      link.href = L.resource('view/clashoo/clashoo.css') + '?v=20260502b1';
+      link.href = L.resource('view/clashoo/clashoo.css') + '?v=20260609b1';
       document.head.appendChild(link);
     } else {
-      document.getElementById('cl-css-ext').href = L.resource('view/clashoo/clashoo.css') + '?v=20260502b1';
+      document.getElementById('cl-css-ext').href = L.resource('view/clashoo/clashoo.css') + '?v=20260609b1';
     }
 
-    if (coreType === 'singbox') return this._renderSingbox(sbData);
+    if (coreType === 'singbox') return this._renderSingbox(sbData, uiData, subscriptionUpdateStatus);
 
     var tabs = [
       { id: 'subs', label: '订阅' },
@@ -294,11 +663,32 @@ return view.extend({
     var tabEls   = {};
     var panelEls = {};
 
+    var subPanel = E('div', { 'class': 'cl-panel' + (this._tab === 'subs' ? ' active' : ''), id: 'cl-panel-subs' },
+      this._buildSubsPanel(subsData, subFiles, upFiles, customFiles, tplFiles, uiData, subscriptionUpdateStatus)
+    );
+    panelEls['subs'] = subPanel;
+
+    var proxyPanel = E('div', { 'class': 'cl-panel' + (this._tab === 'proxy' ? ' active' : ''), id: 'cl-panel-proxy' });
+    panelEls['proxy'] = proxyPanel;
+
+    var dnsPanel = E('div', { 'class': 'cl-panel' + (this._tab === 'dns' ? ' active' : ''), id: 'cl-panel-dns' });
+    panelEls['dns'] = dnsPanel;
+
+    var built = { subs: true, proxy: false, dns: false };
+    var ensureBuilt = function (id) {
+      if (built[id]) return;
+      if (id === 'proxy') self._buildProxyForm(proxyPanel, smartModelData);
+      else if (id === 'dns') self._buildDnsForm(dnsPanel);
+      built[id] = true;
+    };
+    if (this._tab !== 'subs') ensureBuilt(this._tab);
+
     var tabBar = E('div', { 'class': 'cl-tabs' },
       tabs.map(function (t) {
         var el = E('div', {
           'class': 'cl-tab' + (self._tab === t.id ? ' active' : ''),
           click: function () {
+            ensureBuilt(t.id);
             Object.keys(tabEls).forEach(function (k) {
               tabEls[k].className   = 'cl-tab'   + (k === t.id ? ' active' : '');
               panelEls[k].className = 'cl-panel' + (k === t.id ? ' active' : '');
@@ -312,27 +702,15 @@ return view.extend({
       })
     );
 
-    var subPanel = E('div', { 'class': 'cl-panel' + (this._tab === 'subs' ? ' active' : ''), id: 'cl-panel-subs' },
-      this._buildSubsPanel(subsData, subFiles, upFiles, customFiles, tplFiles, uiData)
-    );
-    panelEls['subs'] = subPanel;
-
-    var proxyPanel = E('div', { 'class': 'cl-panel' + (this._tab === 'proxy' ? ' active' : ''), id: 'cl-panel-proxy' });
-    panelEls['proxy'] = proxyPanel;
-    this._buildProxyForm(proxyPanel, smartModelData);
-
-    var dnsPanel = E('div', { 'class': 'cl-panel' + (this._tab === 'dns' ? ' active' : ''), id: 'cl-panel-dns' });
-    panelEls['dns'] = dnsPanel;
-    this._buildDnsForm(dnsPanel);
-
     return E('div', { 'class': 'cl-wrap clashoo-container cl-config-page cl-form-page ' + getThemeClass() }, [tabBar, subPanel, proxyPanel, dnsPanel]);
   },
 
-  _buildSubsPanel: function (subsData, subFiles, upFiles, customFiles, tplFiles, uiData) {
+  _buildSubsPanel: function (subsData, subFiles, upFiles, customFiles, tplFiles, uiData, subscriptionUpdateStatus) {
     var self = this;
     var sanitizeText = function (v) { return (v == null || v === 'null') ? '' : String(v); };
     var subUrl      = sanitizeText(uiData && uiData.subscribe_url);
     var savedName   = sanitizeText(uiData && uiData.config_name);
+    var savedUa     = sanitizeText(uiData && uiData.sub_ua);
     var subs        = subsData.subs || [];
     var safeText    = function (v) { return (v == null || v === 'null') ? '' : String(v); };
 
@@ -351,21 +729,82 @@ return view.extend({
       style: 'margin-top:0'
     });
 
+    var uaPicker = buildUaPicker(savedUa);
+
+    var dlStatusEl = E('div', { 'class': 'cl-update-status', style: 'margin-top:6px;font-size:12px;min-height:18px;line-height:1.4' });
+    var setDlStatus = function (text, tone) {
+      dlStatusEl.textContent = text || '';
+      dlStatusEl.style.color = tone === 'success' ? 'var(--success-color, #2e7d32)'
+                             : tone === 'error'   ? 'var(--error-color, #d32f2f)'
+                             : tone === 'progress'? 'var(--tip-color, #1976d2)'
+                             : '';
+    };
+    var stopDlPoll = function () {
+      if (self._subDlTimer) { clearInterval(self._subDlTimer); self._subDlTimer = null; }
+    };
+
     var dlBtn = E('button', {
       'class': 'btn cbi-button-action cl-btn-sm',
       click: function () {
+        if (!urlInput.value.trim()) {
+          setDlStatus('✗ 请先填写订阅链接', 'error');
+          setTimeout(function () { setDlStatus(''); }, 4000);
+          return;
+        }
+        stopDlPoll();
+        dlBtn.disabled = true;
+        dlBtn.textContent = '下载中…';
+        setDlStatus('⏳ 正在提交下载任务...', 'progress');
+
+        var pollCount = 0;
+        var pollDl = function () {
+          pollCount++;
+          callDownloadSubsStatus().then(function (st) {
+            st = st || {};
+            var raw  = st.last_line || '';
+            var line = clashoo.localizeLogLine(raw);
+            if (st.running) {
+              setDlStatus('⏳ ' + (line || '正在下载订阅...'), 'progress');
+              return;
+            }
+            /* sh has not flushed yet, wait a few polls */
+            if (!raw && pollCount < 4) return;
+            stopDlPoll();
+            /* 收尾行只有三种：「订阅下载完成：成功 N 个，失败 M 个」=成功（含"失败 0 个"
+               字样，不能按"失败"判负）；「订阅下载失败：全部链接失败」「未找到订阅链接」=失败 */
+            var ok = /下载完成|completed/i.test(raw);
+            /* fail_detail carries the real cause（rc=/HTTP/校验失败）：
+               all fail: show real cause; partial: summary + cause */
+            var detail = st.fail_detail ? clashoo.localizeLogLine(st.fail_detail) : '';
+            var shown = ok ? (line + (detail ? ' · ' + detail : ''))
+                           : (detail || line || '订阅下载失败');
+            dlBtn.disabled = false;
+            dlBtn.textContent = '下载订阅';
+            setDlStatus((ok ? '✓ ' : '✗ ') + shown, ok ? 'success' : 'error');
+            setTimeout(function () { location.reload(); }, 1200);
+          }).catch(function () {});
+        };
+
         L.resolveDefault(uci.load('clashoo'), null)
           .then(function () {
             uci.set('clashoo', 'config', 'subscribe_url', urlInput.value);
             uci.set('clashoo', 'config', 'config_name',   nameInput.value.trim());
+            uci.set('clashoo', 'config', 'sub_ua',        uaPicker.getValue());
             return uci.save();
           })
           .then(function () { return clashoo.commitConfig(); })
           .then(function () { return clearClashooDirty(); })
           .then(function () { return L.resolveDefault(callDownloadSubs(), {}); })
           .then(function (r) {
-            ui.addNotification(null, E('p', r.success ? '下载成功' : '下载失败: ' + (r.message || '')));
-            location.reload();
+            if (r && r.running) setDlStatus('⏳ 已有下载任务进行中...', 'progress');
+            self._subDlTimer = setInterval(pollDl, 2000);
+            setTimeout(pollDl, 800);
+          })
+          .catch(function (e) {
+            stopDlPoll();
+            dlBtn.disabled = false;
+            dlBtn.textContent = '下载订阅';
+            setDlStatus('✗ 启动失败: ' + (e && e.message || e), 'error');
           });
       }
     }, '下载订阅');
@@ -517,14 +956,14 @@ return view.extend({
 
     /* ── 其他配置文件（上传 + 自定义/复写输出）── */
     var otherEditorTitle    = E('span', { 'class': 'cl-editor-hdr' }, '选择上方配置后可在此处编辑');
-    var otherTextarea       = E('textarea', { 'class': 'cl-json-editor cl-other-editor', placeholder: '选择配置文件后内容将显示在这里…' });
+    var otherEd             = createConfigEditor('yaml');
     var otherSaveBtn        = E('button', {
       'class': 'btn cbi-button-action cl-btn-sm',
       disabled: '',
       click: function () {
-        var meta = otherTextarea.dataset;
+        var meta = otherEd.textarea.dataset;
         if (!meta.name) return;
-        L.resolveDefault(callUploadConfig(meta.name, otherTextarea.value, meta.type), {}).then(function (r) {
+        L.resolveDefault(callUploadConfig(meta.name, otherEd.getValue(), meta.type), {}).then(function (r) {
           if (r && r.success) ui.addNotification(null, E('p', meta.name + ' 已保存'));
           else ui.addNotification(null, E('p', '保存失败: ' + ((r && (r.message || r.error)) || '')));
         });
@@ -533,7 +972,7 @@ return view.extend({
 
     var otherEditorBox = E('div', { 'class': 'cl-section cl-card cl-sb-editor' }, [
       otherEditorTitle,
-      otherTextarea,
+      otherEd.el,
       E('div', { 'class': 'cl-actions cl-sb-row-actions cl-sb-editor-actions' }, [
         otherSaveBtn,
         E('span', { 'class': 'cl-hint' }, '编辑后点击保存；切换配置后服务将自动重启')
@@ -543,11 +982,11 @@ return view.extend({
     function loadOtherEditor(name, type) {
       otherEditorTitle.textContent = '编辑：' + name;
       otherSaveBtn.removeAttribute('disabled');
-      otherTextarea.dataset.name = name;
-      otherTextarea.dataset.type = type;
-      otherTextarea.value = '加载中…';
+      otherEd.textarea.dataset.name = name;
+      otherEd.textarea.dataset.type = type;
+      otherEd.setValue('加载中…');
       L.resolveDefault(callReadOtherConfig(name, type), {}).then(function (r) {
-        otherTextarea.value = r.content || '';
+        otherEd.setValue(r.content || '');
       });
     }
 
@@ -595,10 +1034,11 @@ return view.extend({
     var sections = [
       E('div', { 'class': 'cl-section cl-card' }, [
         E('h4', {}, '订阅链接'),
-        E('div', { 'class': 'cl-form-wrap cl-fixed-600' }, [urlInput, nameInput, dlBtn])
+        E('div', { 'class': 'cl-form-wrap cl-fixed-600' }, [urlInput, nameInput, uaPicker.wrap, dlBtn, dlStatusEl])
       ]),
       E('div', { 'class': 'cl-section cl-card' }, [
         E('h4', {}, '已下载订阅'),
+        buildSubscriptionSchedule(uiData, subscriptionUpdateStatus),
         subs.length ? E('div', { 'class': 'cl-fixed-600' }, [
           E('div', { 'class': 'cl-file-list' }, subCards)
         ])
@@ -616,7 +1056,7 @@ return view.extend({
 
     if (otherFiles.length) {
       sections.push(E('div', { 'class': 'cl-section cl-card' }, [
-        E('h4', {}, '其他配置文件（上传 / 复写输出）'),
+        E('h4', {}, '其他配置文件（上传 / 覆写输出）'),
         E('div', { 'class': 'cl-fixed-600' }, [
           E('div', { 'class': 'cl-file-list' }, otherCards)
         ])
@@ -624,9 +1064,9 @@ return view.extend({
       sections.push(otherEditorBox);
     }
 
-    sections.push(
+      sections.push(
       E('div', { 'class': 'cl-section cl-card' }, [
-        E('h4', {}, '复写设置'),
+        E('h4', {}, '覆写设置'),
         E('div', { 'class': 'cl-form-wrap cl-rewrite-wrap cl-fixed-600' }, [
           E('div', { 'class': 'cl-rewrite-group cl-rewrite-group-template' }, [
             E('div', { 'class': 'cl-rewrite-group-title' }, '模板选择'),
@@ -667,12 +1107,18 @@ return view.extend({
     o = s.option(form.Flag, 'disable_quic_gso', '禁用 QUIC GSO');
     o = s.option(form.Flag, 'ipv4_dns_hijack', 'IPv4 DNS 劫持');
     o = s.option(form.Flag, 'ipv6_dns_hijack', 'IPv6 DNS 劫持');
+    o.description = '拦截 IPv6 DNS 流量，防止写死 DNS 的设备绕过分流。';
     o = s.option(form.Flag, 'ipv4_proxy',      'IPv4 代理');
     o = s.option(form.Flag, 'ipv6_proxy',      'IPv6 代理');
     o = s.option(form.Flag, 'fake_ip_ping_hijack', '虚拟 IP Ping 劫持');
     o = s.option(form.Flag, 'dns_leak_protect', '防 DNS 泄漏');
-    o.description = '阻止国内 DNS 解析国外域名、关闭 IPv6 解析、阻断 DoT/DoQ（853 端口）。切换后需重启服务生效。<br>' +
+    o.description = '普通域名仅使用境外 DNS 并让 DNS 连接遵守代理规则，同时阻断 DoT/DoQ（853 端口）并关闭 IPv6 解析。重启生效。<br>' +
+                    '<strong>说明：</strong>代理节点域名仍使用直连 DNS 启动解析，不用于客户端普通域名查询。<br>' +
                     '<strong>注意：</strong>开启后 IPv6 网站只能通过 IPv4 访问，纯 IPv6 网络下可能无法上网。';
+    o = s.option(form.Flag, 'core_only', '仅内核（进阶）');
+    o.description = '只用你导入的配置跑内核，不接管防火墙 / DNS / 路由。<br>' +
+                    'mihomo 原样运行，适配 nikki、OpenClash；sing-box 自动升级老格式，兼容 momo、homeproxy。<br>' +
+                    '<strong>前提：</strong>配置自带透明代理（TUN auto-route 或 TProxy 入站），切换后需重启生效。';
 
     s = m.section(form.NamedSection, 'config', 'clashoo', '端口配置');
     s.addremove = false;
@@ -731,6 +1177,28 @@ return view.extend({
     o = sa.option(form.Value, 'username', '用户名');
     o = sa.option(form.Value, 'password', '密码');
 
+    var sr = m.section(form.TypedSection, 'addtype', '自定义分流规则',
+      '纠正分流：把某个域名或 IP 强制走「直连」或「代理」，规则优先于订阅自带规则，mihomo 与 sing-box 均生效。');
+    sr.anonymous = true; sr.addremove = true;
+    o = sr.option(form.Value, 'ipaaddr', '域名 / IP');
+    /* allow empty so the default placeholder row never blocks saving other settings;
+       empty rule rows are pruned on save (pruneEmptyAddtype) instead of erroring */
+    o.rmempty = true;
+    o.placeholder = 'example.com 或 1.2.3.0/24';
+    o = sr.option(form.ListValue, 'type', '类型');
+    o.value('DOMAIN-SUFFIX', '域名后缀（如 google.com）');
+    o.value('DOMAIN', '精确域名（如 www.google.com）');
+    o.value('DOMAIN-KEYWORD', '域名关键词（如 youtube）');
+    o.value('IP-CIDR', 'IP / CIDR（如 8.8.8.8/32）');
+    o.default = 'DOMAIN-SUFFIX';
+    o = sr.option(form.ListValue, 'pgroup', '走向');
+    o.value('DIRECT', '直连');
+    o.value('__PROXY__', '代理');
+    o.default = 'DIRECT';
+    o = sr.option(form.Flag, 'res', 'no-resolve');
+    o.depends('type', 'IP-CIDR');
+    o.description = 'IP 规则不触发 DNS 解析';
+
     m.render().then(function (node) {
       decorateControlWraps(node);
       container.appendChild(node);
@@ -749,12 +1217,54 @@ return view.extend({
               E('span', { 'class': 'cl-ver-value' }, modelStatus.version)
             ])
           : E('span', { 'class': 'cl-ver-tag cl-ver-label' }, '模型未安装');
-        var upgBtn = E('button', { 'class': 'btn cbi-button-action', 'click': function () {
-          upgBtn.disabled = true; upgBtn.textContent = '更新中...';
-          callSmartUpgradeLgbm().then(function () {
+        var statusEl = E('div', { 'class': 'cl-update-status', style: 'margin-top:6px;font-size:12px;min-height:18px;line-height:1.4' });
+        var upgPoller = null;
+        function stopUpgPoller() { if (upgPoller) { clearInterval(upgPoller); upgPoller = null; } }
+        function setStatus(text, tone) {
+          // tone: '' / 'success' / 'error' / 'progress'
+          statusEl.textContent = text || '';
+          statusEl.style.color = tone === 'success' ? 'var(--success-color, #2e7d32)'
+                                : tone === 'error'   ? 'var(--error-color, #d32f2f)'
+                                : tone === 'progress'? 'var(--tip-color, #1976d2)'
+                                : '';
+        }
+        function pollUpgStatus() {
+          callSmartUpgradeLgbmStatus().then(function (st) {
+            st = st || {};
+            var rawLine = st.last_line || '';
+            var line = clashoo.localizeLogLine(rawLine);
+            if (st.running) {
+              setStatus('⏳ ' + (line || '正在下载 LightGBM 模型...'), 'progress');
+              return;
+            }
+            stopUpgPoller();
             upgBtn.disabled = false; upgBtn.textContent = '检查并更新';
-            ui.addNotification(null, E('p', '模型更新任务已启动'));
-          }).catch(function () { upgBtn.disabled = false; upgBtn.textContent = '检查并更新'; });
+            var ok = /success|complete|done|完成|成功|无需更新|已是最新/i.test(rawLine + ' ' + line) || (st.has_model && st.size_kb > 100);
+            var sizeTxt = st.size_kb ? '（' + (st.size_kb >= 1024 ? (st.size_kb/1024).toFixed(1) + ' MB' : st.size_kb + ' KB') + '）' : '';
+            setStatus((ok ? '✓ ' : '✗ ') + (line || (ok ? '更新成功' : '更新失败')) + sizeTxt, ok ? 'success' : 'error');
+            // 刷新版本标签
+            if (verEl && st.version) {
+              var valEl = verEl.querySelector('.cl-ver-value');
+              if (valEl) valEl.textContent = st.version;
+              else verEl.textContent = '当前版本: ' + st.version;
+            }
+            setTimeout(function () { setStatus(''); }, 8000);
+          });
+        }
+        var upgBtn = E('button', { 'class': 'btn cbi-button-action', 'click': function () {
+          stopUpgPoller();
+          upgBtn.disabled = true; upgBtn.textContent = '下载中...';
+          setStatus('⏳ 正在启动更新任务...', 'progress');
+          callSmartUpgradeLgbm().then(function () {
+            // 开启状态轮询：每 2s 一次直到结束
+            upgPoller = setInterval(pollUpgStatus, 2000);
+            // 立即先拉一次，反馈更快
+            setTimeout(pollUpgStatus, 500);
+          }).catch(function () {
+            upgBtn.disabled = false; upgBtn.textContent = '检查并更新';
+            setStatus('✗ 启动失败', 'error');
+            setTimeout(function () { setStatus(''); }, 5000);
+          });
         }}, '检查并更新');
         smartSec.appendChild(E('div', { 'class': 'cbi-value' }, [
           E('label', { 'class': 'cbi-value-title' }, '更新模型'),
@@ -762,7 +1272,8 @@ return view.extend({
             E('div', { 'class': 'cl-btn-ver-wrap' }, [
               upgBtn,
               verEl
-            ])
+            ]),
+            statusEl
           ])
         ]));
         var flushBtn = E('button', { 'class': 'btn cbi-button', 'click': function () {
@@ -777,17 +1288,24 @@ return view.extend({
           E('div', { 'class': 'cbi-value-field' }, [flushBtn])
         ]));
       }
+      makeSectionCollapsible(node, '透明代理', true);
+      makeSectionCollapsible(node, '端口配置', true);
+      makeSectionCollapsible(node, 'Smart 策略设置', false);
+      makeSectionCollapsible(node, '代理认证', false);
+      makeSectionCollapsible(node, '自定义分流规则', false);
 
       container.appendChild(E('div', { 'class': 'cl-save-bar' }, [
         E('button', { 'class': 'btn cbi-button', click: function () {
-          m.save().then(function () { return clashoo.commitConfig(); })
+          m.save(null, true).then(function () { return clashoo.commitConfig(); })
             .then(function () { return clearClashooDirty(); })
             .then(function () { location.reload(); })
             .catch(function (e) { ui.addNotification(null, E('p', '保存失败: ' + (e.message || e))); });
         }}, '保存配置'),
         E('button', { 'class': 'btn cbi-button-action', click: function () {
-          saveCommitApplyMaybeReload(m, '代理配置已保存并热重载服务', '代理配置已保存，服务未启动')
-            .catch(function (e) { ui.addNotification(null, E('p', '操作失败: ' + (e.message || e))); });
+          // 保存前探测主代理组，供自定义分流规则的「代理」(__PROXY__) 解析（失败忽略，注入器回退 GLOBAL）
+          callDetectPrimaryGroup().catch(function () {}).then(function () {
+            return saveCommitApplyMaybeReload(m, '代理配置已保存并热重载服务', '代理配置已保存，服务未启动');
+          }).catch(function (e) { ui.addNotification(null, E('p', '操作失败: ' + (e.message || e))); });
         }}, '应用配置')
       ]));
     });
@@ -799,34 +1317,96 @@ return view.extend({
 
     s = m.section(form.NamedSection, 'config', 'clashoo', '基础 DNS');
     s.addremove = false;
+    o = s.option(form.DummyValue, '_dns_auto_setup', 'DNS 自动配置');
+    o.cfgvalue = function () {
+      var statusEl = E('div', { 'class': 'cl-dns-auto-status' }, []);
+      var last = readDnsAutoResult();
+      if (last && last.success)
+        setDnsAutoStatus(statusEl, dnsAutoSummaryNode(last));
+      else
+        statusEl.textContent = '自动选择可用 DNS，仅更新上游服务器；分流策略和高级设置保持不变。';
+      if (last && last.success)
+        window.setTimeout(function () {
+          clearDnsAutoResult();
+          statusEl.textContent = '自动选择可用 DNS，仅更新上游服务器；分流策略和高级设置保持不变。';
+        }, 6000);
+      var btn = E('button', {
+        'class': 'btn cbi-button-action',
+        click: function (ev) {
+          ev.preventDefault();
+          btn.disabled = true;
+          setDnsAutoStatus(statusEl, '正在测速并写入 DNS 上游…');
+          clashoo.dnsAutoSetup()
+            .then(function (res) {
+              btn.disabled = false;
+              if (!res || !res.success) {
+                setDnsAutoStatus(statusEl, (res && res.message) || 'DNS 自动配置失败');
+                ui.addNotification(null, E('p', (res && res.message) || 'DNS 自动配置失败'));
+                return;
+              }
+              storeDnsAutoResult(res);
+              setDnsAutoStatus(statusEl, dnsAutoSummaryNode(res));
+              ui.addNotification(null, E('p', dnsAutoResultMessage(res)));
+              window.setTimeout(function () {
+                clearDnsAutoResult();
+                statusEl.textContent = '自动配置已完成。';
+              }, 6000);
+            })
+            .catch(function (e) {
+              btn.disabled = false;
+              setDnsAutoStatus(statusEl, 'DNS 自动配置失败: ' + (e.message || e));
+              ui.addNotification(null, E('p', 'DNS 自动配置失败: ' + (e.message || e)));
+            });
+        }
+      }, '一键测速并应用');
+      return E('div', { 'class': 'cl-dns-auto' }, [
+        E('div', { 'class': 'cl-dns-auto-actions' }, [btn]),
+        statusEl
+      ]);
+    };
+    o.write = function () {};
     o = s.option(form.Flag,        'enable_dns',        '启用 DNS 模块');
     o = s.option(form.Value,       'listen_port',       'DNS 监听端口');
     o.datatype = 'port';
     o = s.option(form.ListValue,   'enhanced_mode',     '增强模式');
     o.value('fake-ip', 'Fake-IP'); o.value('redir-host', 'Redir-Host');
     o.default = 'fake-ip';
+    o.description = '<span style="display:inline-block;padding:1px 7px;border-radius:4px;font-size:12px;font-weight:600;background:rgba(var(--primary-rgb),0.14);color:var(--cl-primary,#3886a1);">Fake-IP · 推荐</span> 解析快、分流准，大陆分流由内核完成。<br />' +
+      '<span style="display:inline-block;padding:1px 7px;border-radius:4px;font-size:12px;background:rgba(128,128,128,0.16);color:var(--cl-label-muted,#888);">Redir-Host</span> 大陆流量在防火墙层直接绕过核心，DNS 体验略弱。按需选择。';
     o = s.option(form.Value,       'fake_ip_range',     'Fake-IP 网段');
     o.default = '198.18.0.1/16';
     o.placeholder = '198.18.0.1/16';
     o.depends('enhanced_mode', 'fake-ip');
     o.remove = function () {};
     o = s.option(form.Flag,        'enable_ipv6',       'IPv6 DNS');
+
+    s = m.section(form.NamedSection, 'config', 'clashoo', '高级 DNS');
+    s.addremove = false;
     o = s.option(form.Flag,        'dnsforwader',       '强制转发 DNS');
+    o = s.option(form.ListValue,   'fake_ip_filter_mode', 'Fake-IP 过滤模式');
+    o.value('blacklist', '黑名单（列入走真 IP，默认）');
+    o.value('whitelist', '白名单（仅列入走 fake-IP）');
+    o.value('rule',      '规则模式（与 rules 同语法）');
+    o.default = 'blacklist';
+    o.depends('enhanced_mode', 'fake-ip');
+
     o = s.option(form.DynamicList, 'fake_ip_filter',    'Fake-IP 过滤域名');
-    o.placeholder = '*.lan / localhost.ptlogin2.qq.com';
+    o.placeholder = '*.lan / geosite:cn / RULE-SET,cn_domain,real-ip';
+    o.description = '黑名单/白名单模式：填域名或 <code>geosite:cn</code> 简写。规则模式：填 <code>GEOSITE,cn,real-ip</code> / <code>RULE-SET,xxx,real-ip</code> 这种与 rules 同语法的条目，末尾通常加一条 <code>MATCH,fake-ip</code> 兜底。填 <code>geosite:cn</code> 会自动改用内置 cn.mrs 加速，免加载 10MB geosite.dat。';
     o.depends('enhanced_mode', 'fake-ip');
     o.remove = function () {};
     o = s.option(form.DynamicList, 'default_nameserver', 'Bootstrap DNS');
     o.placeholder = '223.5.5.5';
     o.description = '用于解析 DoH/DoT/DoQ 服务器域名，建议填写纯 IP DNS。';
     o = s.option(form.Value, 'dns_ecs', 'ECS 客户端子网');
-    o.placeholder = '223.5.5.0/24';
+    o.placeholder = '推荐留空';
     o.description = 'Mihomo 写入 DNS URL 的 ecs 参数；sing-box 写入 dns.client_subnet。清空则不写入。';
     o.rmempty = true;
     o = s.option(form.Flag, 'dns_ecs_override', '强制覆盖 ECS');
     o.default = '0';
     o = s.option(form.Flag, 'fallback_filter_geoip', 'Fallback GeoIP 过滤');
-    o.default = '1';
+    o.default = '0';
+    o.description = '依赖 MMDB；若启用但本地 GeoIP 数据库缺失，可能导致内核启动失败。一般无需开启。';
     o = s.option(form.DynamicList, 'fallback_filter_ipcidr', 'Fallback IP CIDR');
     o.placeholder = '240.0.0.0/4';
     o = s.option(form.Flag, 'singbox_independent_cache', 'sing-box 独立 DNS 缓存');
@@ -873,10 +1453,14 @@ return view.extend({
 
     m.render().then(function (node) {
       decorateControlWraps(node);
+      makeSectionCollapsible(node, '基础 DNS', true);
+      makeSectionCollapsible(node, '高级 DNS', false);
+      makeSectionCollapsible(node, '上游 DNS', false);
+      makeSectionCollapsible(node, '分流解析策略', false);
       container.appendChild(node);
       container.appendChild(E('div', { 'class': 'cl-save-bar' }, [
         E('button', { 'class': 'btn cbi-button', click: function () {
-          m.save().then(function () { return clashoo.commitConfig(); })
+          m.save(null, true).then(function () { return clashoo.commitConfig(); })
             .then(function () { return clearClashooDirty(); })
             .then(function () { location.reload(); })
             .catch(function (e) { ui.addNotification(null, E('p', '保存失败: ' + (e.message || e))); });
@@ -891,7 +1475,7 @@ return view.extend({
 
   /* ── sing-box UI ── */
 
-  _renderSingbox: function (sbData) {
+  _renderSingbox: function (sbData, uiData, subscriptionUpdateStatus) {
     var self = this;
     var profiles = sbData.profiles || [];
     var tabEls = {}, panelEls = {};
@@ -923,7 +1507,7 @@ return view.extend({
     );
 
     var profilesPanel = E('div', { 'class': 'cl-panel' + (this._sbTab === 'profiles' ? ' active' : ''), id: 'cl-panel-profiles' },
-      self._buildSbProfilesPanel(profiles, sbData.active || ''));
+      self._buildSbProfilesPanel(profiles, sbData.active || '', uiData, subscriptionUpdateStatus));
     panelEls['profiles'] = profilesPanel;
 
     var wizardPanel = E('div', { 'class': 'cl-panel' + (this._sbTab === 'wizard' ? ' active' : ''), id: 'cl-panel-wizard' },
@@ -933,7 +1517,7 @@ return view.extend({
     return E('div', { 'class': 'cl-wrap clashoo-container cl-config-page cl-form-page ' + getThemeClass() }, [tabBar, profilesPanel, wizardPanel]);
   },
 
-  _buildSbProfilesPanel: function (profiles, activeProfile) {
+  _buildSbProfilesPanel: function (profiles, activeProfile, uiData, subscriptionUpdateStatus) {
     var self = this;
     var safeText = function (v) { return (v == null || v === 'null') ? '' : String(v); };
     var formatJsonForEditor = function (content) {
@@ -946,14 +1530,14 @@ return view.extend({
 
     /* ── JSON editor (initially hidden) ── */
     var editorTitle = E('span', { 'class': 'cl-editor-hdr' }, '选择上方配置后可在此处编辑');
-    var textarea    = E('textarea', { 'class': 'cl-json-editor', placeholder: '选择配置文件后内容将显示在这里…' });
+    var ed          = createConfigEditor({ name: 'javascript', json: true });
     var saveBtn = E('button', {
       'class': 'btn cbi-button-action cl-btn-sm',
       disabled: '',
       click: function () {
-        var name = textarea.dataset.name;
+        var name = ed.textarea.dataset.name;
         if (!name) return;
-        clashoo.saveSingboxProfile(name, formatJsonForEditor(textarea.value)).then(function (r) {
+        clashoo.saveSingboxProfile(name, formatJsonForEditor(ed.getValue())).then(function (r) {
           if (r.success) ui.addNotification(null, E('p', name + ' 已保存'));
           else ui.addNotification(null, E('p', '保存失败: ' + (r.message || r.error || '')));
         });
@@ -964,14 +1548,14 @@ return view.extend({
       'class': 'btn cbi-button cl-btn-sm',
       disabled: '',
       click: function () {
-        var name = textarea.dataset.name;
+        var name = ed.textarea.dataset.name;
         if (!name) return;
         L.resolveDefault(callMigrateSbProfile(name), {}).then(function (r) {
           if (r && r.success) {
             var msg = r.changes && r.changes.length ? '已修复废弃字段: ' + r.changes.join(', ') : '配置已是最新，无需修复';
             ui.addNotification(null, E('p', msg));
             /* 重新加载编辑器内容 */
-            clashoo.getSingboxProfile(name).then(function (gr) { textarea.value = formatJsonForEditor(gr.content || ''); });
+            clashoo.getSingboxProfile(name).then(function (gr) { ed.setValue(formatJsonForEditor(gr.content || '')); });
           } else {
             ui.addNotification(null, E('p', '修复失败: ' + ((r && r.message) || '')));
           }
@@ -981,7 +1565,7 @@ return view.extend({
 
     var editorBox = E('div', { 'class': 'cl-section cl-card cl-sb-card cl-sb-editor' }, [
       editorTitle,
-      textarea,
+      ed.el,
       E('div', { 'class': 'cl-actions cl-sb-row-actions cl-sb-editor-actions' }, [
         saveBtn,
         migrateBtn,
@@ -993,10 +1577,10 @@ return view.extend({
       editorTitle.textContent = '编辑：' + name;
       saveBtn.removeAttribute('disabled');
       migrateBtn.removeAttribute('disabled');
-      textarea.dataset.name = name;
-      textarea.value = '加载中…';
+      ed.textarea.dataset.name = name;
+      ed.setValue('加载中…');
       clashoo.getSingboxProfile(name).then(function (r) {
-        textarea.value = formatJsonForEditor(r.content || '');
+        ed.setValue(formatJsonForEditor(r.content || ''));
       });
     }
 
@@ -1075,6 +1659,10 @@ return view.extend({
 
     return [
       E('div', { 'class': 'cl-section cl-card cl-sb-card' }, [
+        E('h4', {}, '订阅更新'),
+        buildSubscriptionSchedule(uiData || {}, subscriptionUpdateStatus || {})
+      ]),
+      E('div', { 'class': 'cl-section cl-card cl-sb-card' }, [
         E('h4', {}, 'sing-box 配置文件'),
         E('table', { 'class': 'cl-sub-list cl-sb-list' }, [
           E('thead', {}, E('tr', {}, [E('th', {}, '文件名'), E('th', {}, '大小'), E('th', {}, '操作')])),
@@ -1104,21 +1692,20 @@ return view.extend({
       placeholder: '配置文件名（选填，留空自动生成 singbox.json）',
       style: 'margin-top:0'
     });
-    var secretInput = E('input', {
-      'class': 'cl-sub-url',
-      type: 'text',
-      placeholder: 'API 密钥（选填，留空使用当前面板密码）',
-      style: 'margin-top:0'
-    });
+    var savedUa = '';
+    try { savedUa = uci.get('clashoo', 'config', 'sub_ua') || ''; } catch (e) {}
+    // YAML 订阅转换走 mihomo 订阅流程（拉 yaml → yaml2singbox），UA 与 mihomo 共用 sub_ua
+    var convertUaPicker = buildUaPicker(savedUa);
 
     var genBtn, applyBtn;
-    function setBusy(busy) {
+    function setBusy(busy, activeBtn) {
       [genBtn, applyBtn].forEach(function (b) {
         if (!b) return;
         b.disabled = busy ? '' : null;
         if (busy) {
           if (!b.dataset.label) b.dataset.label = b.textContent;
-          b.textContent = '生成中…';
+          if (b === activeBtn)
+            b.textContent = b._clBusyLabel || '处理中…';
         } else if (b.dataset.label) {
           b.textContent = b.dataset.label;
         }
@@ -1127,14 +1714,24 @@ return view.extend({
     function doCreate(setActive) {
       var url = urlInput.value.trim();
       if (!url) { ui.addNotification(null, E('p', '请填写订阅链接')); return; }
-      setBusy(true);
-      clashoo.createSingboxConfig(url, nameInput.value.trim(), secretInput.value.trim())
+      setBusy(true, setActive ? applyBtn : genBtn);
+      // 保存 UA 到 UCI，后端 create_singbox_config 会读这个字段
+      var uaPromise = L.resolveDefault(uci.load('clashoo'), null).then(function () {
+        uci.set('clashoo', 'config', 'sub_ua', convertUaPicker.getValue());
+        return uci.save()
+          .then(function () { return clashoo.commitConfig(); })
+          .then(function () { return clearClashooDirty(); });
+      }).catch(function () {});
+      uaPromise.then(function () {
+        return clashoo.createSingboxConfig(url, nameInput.value.trim());
+      })
         .then(function (r) {
           /* RPC 超时被 resolveDefault 兜底成 {}，r.success 是 undefined。
            * 此时后端可能仍在跑（yaml2singbox 转 90 节点等），让用户直接刷新页
            * 看实际产物，而不是误报"失败"。 */
           if (!r || typeof r.success === 'undefined') {
             ui.addNotification(null, E('p', '生成时间较长，正在刷新查看结果…'));
+            setBusy(false);
             setTimeout(function () { location.reload(); }, 1500);
             return;
           }
@@ -1159,8 +1756,11 @@ return view.extend({
 
     genBtn   = E('button', { 'class': 'btn cbi-button cl-btn-sm',        click: function () { doCreate(false); } }, '生成配置');
     applyBtn = E('button', { 'class': 'btn cbi-button-action cl-btn-sm', click: function () { doCreate(true);  } }, '应用配置');
+    genBtn._clBusyLabel = '生成中…';
+    applyBtn._clBusyLabel = '应用中…';
 
     /* ── native sing-box subscription card ── */
+    // 注：原生 sing-box JSON 订阅不需要 UA 选项（机场按链接参数/路径区分格式）
     var nativeUrlInput = E('input', {
       'class': 'cl-sub-url',
       type: 'text',
@@ -1174,6 +1774,14 @@ return view.extend({
     });
 
     var fetchBtn, fetchApplyBtn;
+    var fetchStatusEl = E('div', { 'class': 'cl-update-status', style: 'margin-top:6px;font-size:12px;min-height:18px;line-height:1.4' });
+    var setFetchStatus = function (text, tone) {
+      fetchStatusEl.textContent = text || '';
+      fetchStatusEl.style.color = tone === 'success' ? 'var(--success-color, #2e7d32)'
+                                : tone === 'error'   ? 'var(--error-color, #d32f2f)'
+                                : tone === 'progress'? 'var(--tip-color, #1976d2)'
+                                : '';
+    };
     function setNativeBusy(busy) {
       [fetchBtn, fetchApplyBtn].forEach(function (b) {
         if (!b) return;
@@ -1188,31 +1796,37 @@ return view.extend({
     }
     function doFetchNative(setActive) {
       var url = nativeUrlInput.value.trim();
-      if (!url) { ui.addNotification(null, E('p', '请填写订阅链接')); return; }
+      if (!url) {
+        setFetchStatus('✗ 请填写订阅链接', 'error');
+        setTimeout(function () { setFetchStatus(''); }, 4000);
+        return;
+      }
       setNativeBusy(true);
+      setFetchStatus('⏳ 正在拉取配置...', 'progress');
       clashoo.fetchSingboxNative(url, nativeNameInput.value.trim())
         .then(function (r) {
           setNativeBusy(false);
           if (!r || typeof r.success === 'undefined') {
-            ui.addNotification(null, E('p', '拉取超时，请刷新页面查看结果'));
+            setFetchStatus('⏳ 拉取超时，正在刷新查看结果...', 'progress');
             setTimeout(function () { location.reload(); }, 1500);
             return;
           }
           if (!r.success) {
-            ui.addNotification(null, E('p', '拉取失败: ' + (r.message || '')));
+            setFetchStatus('✗ 拉取失败: ' + (r.message || ''), 'error');
             return;
           }
           if (setActive) {
+            setFetchStatus('⏳ ' + r.message + '，正在切换为活动配置...', 'progress');
             return clashoo.setSingboxProfile(r.name).then(function () {
-              ui.addNotification(null, E('p', r.message + '，已切换为活动配置'));
-              location.reload();
+              setFetchStatus('✓ ' + r.message + '，已切换为活动配置', 'success');
+              setTimeout(function () { location.reload(); }, 1200);
             });
           }
-          ui.addNotification(null, E('p', r.message));
-          location.reload();
+          setFetchStatus('✓ ' + r.message, 'success');
+          setTimeout(function () { location.reload(); }, 1200);
         }).catch(function (e) {
           setNativeBusy(false);
-          ui.addNotification(null, E('p', '拉取异常: ' + (e && e.message || e)));
+          setFetchStatus('✗ 拉取异常: ' + (e && e.message || e), 'error');
         });
     }
 
@@ -1224,10 +1838,8 @@ return view.extend({
         E('h4', {}, '节点订阅'),
         E('div', { 'class': 'cl-form-wrap cl-fixed-600 cl-sb-form' }, [
           nativeUrlInput, nativeNameInput,
-          E('div', { 'class': 'cl-actions cl-sb-top-actions' }, [
-            fetchBtn,
-            fetchApplyBtn
-          ])
+          E('div', { 'class': 'cl-actions cl-sb-top-actions' }, [fetchBtn, fetchApplyBtn]),
+          fetchStatusEl
         ]),
         E('p', { 'class': 'cl-sb-note' },
           '适用于机场直接提供 sing-box JSON 格式订阅、或已用外部工具转换好的链接。\n' +
@@ -1237,7 +1849,7 @@ return view.extend({
       E('div', { 'class': 'cl-section cl-card cl-sb-card' }, [
         E('h4', {}, 'YAML 订阅转换'),
         E('div', { 'class': 'cl-form-wrap cl-fixed-600 cl-sb-form' }, [
-          urlInput, nameInput, secretInput,
+          urlInput, nameInput, convertUaPicker.wrap,
           E('div', { 'class': 'cl-actions cl-sb-top-actions' }, [
             genBtn,
             applyBtn

@@ -11,13 +11,14 @@ var CSS = [
   '.cl-wrap{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",sans-serif}',
   '.cl-wrap{--cl-live-title-color:rgba(40,50,68,.62);--cl-live-main-color:rgba(84,96,116,.92);--cl-live-sub-color:rgba(74,86,106,.72);--cl-live-foot-color:rgba(74,86,106,.72);--cl-live-zero-color:rgba(128,128,128,.5)}',
   'body.dark .cl-wrap,body.dark .cl-wrap,body[data-theme="dark"] .cl-wrap,body[data-darkmode="1"] .cl-wrap,body[data-darkmode="true"] .cl-wrap,html.dark .cl-wrap,html.dark .cl-wrap,html[data-theme="dark"] .cl-wrap,html[data-bs-theme="dark"] .cl-wrap,html[data-darkmode="1"] .cl-wrap,html[data-darkmode="true"] .cl-wrap{--cl-live-title-color:rgba(230,238,252,.74);--cl-live-main-color:rgba(228,236,248,.9);--cl-live-sub-color:rgba(208,219,238,.72);--cl-live-foot-color:rgba(208,219,238,.72)}',
-  '.cl-status-kernel{display:inline-flex;align-items:center;gap:2px;height:26px;padding:1px;border-radius:8px;border:0;background:rgba(0,0,0,.03)}',
-  '.cl-status-kernel .cl-core-btn{height:24px;line-height:24px;min-width:58px;padding:0 6px;border:0;border-radius:6px;background:transparent;font-size:11px;font-weight:600;cursor:pointer;opacity:.82}',
-  '.cl-status-kernel .cl-core-btn.active{background:rgba(var(--primary-rgb,0,122,255),.2);border:0;color:var(--primary-color,#0b68dd);box-shadow:none;opacity:1}',
-  '.cl-status-kernel .cl-core-btn:disabled{opacity:.48;cursor:not-allowed}',
-  '.cl-status-kernel.is-busy{opacity:.9}',
-  'body.dark .cl-status-kernel,body.dark .cl-status-kernel,html[data-theme="dark"] .cl-status-kernel,html[data-bs-theme="dark"] .cl-status-kernel{border:0;background:rgba(255,255,255,.06)}',
-  'body.dark .cl-status-kernel .cl-core-btn.active,body.dark .cl-status-kernel .cl-core-btn.active,html[data-theme="dark"] .cl-status-kernel .cl-core-btn.active,html[data-bs-theme="dark"] .cl-status-kernel .cl-core-btn.active{background:rgba(var(--primary-rgb,122,180,255),.24);border:0;color:rgba(222,236,255,.96);box-shadow:none}',
+  '.cl-status-kernel{display:inline-flex;align-items:center;gap:2px;padding:2px;border-radius:8px;border:0;background:rgba(128,128,128,.1)}',
+  '.cl-status-kernel .cl-core-btn{height:24px;line-height:24px;min-width:60px;padding:0 10px;border:0;border-radius:6px;background:transparent;font-size:11px;font-weight:500;color:var(--cl-live-main-color);opacity:.6;cursor:pointer;transition:background-color .18s ease,color .18s ease,opacity .18s ease}',
+  '.cl-status-kernel .cl-core-btn.active{background:linear-gradient(#3886a1,#2f7288);border:0;color:#fff;opacity:1;font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.12)}',
+  '.cl-status-kernel .cl-core-btn:disabled{cursor:not-allowed}',
+  '.cl-status-kernel.is-busy{opacity:.6}',
+  '.cl-core-switch-wrap{display:flex;flex-direction:column;align-items:flex-start;gap:6px}',
+  '.cl-core-switch-hint{font-size:12px;line-height:1.35;color:rgba(74,86,106,.72)}',
+  'body.dark .cl-core-switch-hint,html[data-theme="dark"] .cl-core-switch-hint,html[data-bs-theme="dark"] .cl-core-switch-hint{color:rgba(208,219,238,.72)}',
   '.cl-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}',
   '.cl-card{border:1px solid rgba(0,0,0,.05);border-radius:10px;padding:14px 16px;min-height:70px;box-shadow:0 4px 12px rgba(0,0,0,.03)}',
   '.cl-card-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px}',
@@ -67,6 +68,8 @@ var CSS = [
   '.cl-live-card.is-active .cl-live-num{color:var(--cl-live-main-color,rgba(84,96,116,.92))!important}',
   '.cl-live-card.is-zero .cl-live-num{font-size:16px;color:var(--cl-live-zero-color)!important;opacity:1;text-shadow:none}',
   '.cl-live-card.is-zero .cl-live-unit,.cl-live-card.is-zero .cl-live-foot{color:var(--cl-live-zero-color)!important;opacity:1}',
+  '.cl-live-card.is-zero .cl-live-bg-chart{opacity:0!important}',
+  '.cl-live-card.is-zero .cl-live-line,.cl-live-card.is-zero .cl-live-area{stroke:transparent!important;fill:transparent!important}',
   '.cl-card-access .val{font-size:11px;font-weight:500}',
   '.cl-check-modern{display:flex;flex-direction:column;gap:10px}',
   '.cl-check-group{display:flex;flex-direction:column;gap:6px}',
@@ -105,13 +108,50 @@ var CSS = [
   '@keyframes cl-spin{to{transform:rotate(360deg)}}',
   '@keyframes cl-shimmer{0%{background-position:220% 0}100%{background-position:-220% 0}}',
   '.cl-op-msg{font-size:12px;font-weight:500;opacity:.85;animation:cl-fadein .25s ease}',
+  /* 简易节点面板（模态浮层）*/
+  '.cl-pm-open{display:inline-flex;align-items:center;height:24px;line-height:1;padding:0;border:0 !important;background:transparent !important;box-shadow:none !important;font-size:12px;font-weight:500;color:var(--cl-primary,rgba(0,122,255,.9));cursor:pointer;white-space:nowrap}',
+  '.cl-pm-open:hover{opacity:.7}',
+  '#cl-core-switch-inline-wrap{display:flex;align-items:center;gap:14px;flex-wrap:wrap}',
+  '.cl-pm-mask{display:none;position:fixed;inset:0;background:rgba(0,0,0,.52);z-index:99998}',
+  '.cl-pm-mask.cl-on{display:block}',
+  '.cl-pm{display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:min(900px,calc(100vw - 28px));max-height:calc(100vh - 56px);overflow:auto;background:#fff;color:#2a3142;border:1px solid rgba(0,0,0,.08);border-radius:12px;box-shadow:0 22px 60px rgba(0,0,0,.38);z-index:99999;padding:0 22px 18px;opacity:1}',
+  '.cl-pm.cl-on{display:block}',
+  '.cl-pm-mask.cl-theme-dark{background:rgba(0,0,0,.66)}',
+  '.cl-pm.cl-theme-dark{background:#1f242c;color:#e4ecf8;border-color:rgba(255,255,255,.12);box-shadow:0 22px 68px rgba(0,0,0,.62)}',
+  '.cl-pm-head{position:sticky;top:0;background:inherit;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:15px 0 11px;border-bottom:1px solid rgba(128,128,128,.16)}',
+  '.cl-pm.cl-theme-dark .cl-pm-head{border-bottom-color:rgba(255,255,255,.12)}',
+  '.cl-pm-ttl{font-size:16px;font-weight:600;display:flex;align-items:baseline;gap:10px}',
+  '.cl-pm-st{font-size:12px;font-weight:500}',
+  '.cl-pm-acts{display:flex;gap:8px}',
+  '.cl-pm-close{font-size:12px;padding:5px 14px;border-radius:7px;border:1px solid rgba(128,128,128,.3);background:transparent;color:inherit;cursor:pointer}',
+  '.cl-pm.cl-theme-dark .cl-pm-close,.cl-pm.cl-theme-dark .cl-pm-test{background:#252a33;color:#e4ecf8;border-color:rgba(255,255,255,.24)}',
+  '.cl-pm-body{display:flex;flex-direction:column;gap:9px;padding-top:12px}',
+  '.cl-pm-empty{font-size:13px;opacity:.6;padding:34px 4px;text-align:center}',
+  '.cl-pm-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}',
+  '.cl-pm-name{flex:0 0 170px;text-align:right;font-size:13px;font-weight:500;display:flex;justify-content:flex-end;align-items:center;gap:6px;word-break:break-all}',
+  '.cl-pm-badge{font-size:10px;font-weight:600;padding:1px 6px;border-radius:8px;background:rgba(128,128,128,.16);opacity:.72;flex:none}',
+  '.cl-pm.cl-theme-dark .cl-pm-badge{background:rgba(255,255,255,.1);color:rgba(228,236,248,.82)}',
+  '.cl-pm-sel{flex:1;min-width:190px;font-size:13px;padding:7px 10px;border:1px solid rgba(128,128,128,.3);border-radius:8px;background:transparent;color:inherit}',
+  '.cl-pm-now{flex:1;min-width:190px;font-size:13px;padding:7px 10px;border:1px dashed rgba(128,128,128,.32);border-radius:8px;opacity:.78}',
+  '.cl-pm.cl-theme-dark .cl-pm-sel,.cl-pm.cl-theme-dark .cl-pm-now{background:#252a33;color:#e4ecf8;border-color:rgba(255,255,255,.22)}',
+  '.cl-pm.cl-theme-dark .cl-pm-sel option{background:#252a33;color:#e4ecf8}',
+  '.cl-pm-test{font-size:12px;padding:6px 13px;border-radius:7px;border:1px solid rgba(128,128,128,.3);background:transparent;color:inherit;cursor:pointer;flex:none}',
+  '.cl-pm-test[disabled]{opacity:.5;cursor:default}',
+  '.cl-dly{font-size:11px;font-weight:600}',
+  '.cl-dly-g{color:#2e9b51}',
+  '.cl-dly-y{color:#c98a16}',
+  '.cl-dly-r{color:#d65c4a}',
+  '.cl-dly-x{opacity:.4;font-weight:400}',
   '@media(max-width:900px){.cl-cards{grid-template-columns:repeat(2,1fr)}.cl-controls{grid-template-columns:repeat(2,1fr)}}',
   '@media(max-width:640px){.cl-live-grid{grid-template-columns:1fr}}',
   '@media(max-width:480px){.cl-cards{grid-template-columns:1fr}.cl-controls{grid-template-columns:1fr}.cl-live-grid{grid-template-columns:1fr}}'
 ].join('');
 
-var callDownloadSubs = rpc.declare({ object: 'luci.clashoo', method: 'download_subs', expect: {} });
+var callUpdateCurrentSubscription = rpc.declare({ object: 'luci.clashoo', method: 'update_current_subscription', expect: {} });
 var callOverview = rpc.declare({ object: 'luci.clashoo', method: 'overview', expect: {} });
+var callProxiesList = rpc.declare({ object: 'luci.clashoo', method: 'proxies_list', expect: {} });
+var callProxySelect = rpc.declare({ object: 'luci.clashoo', method: 'proxy_select', params: ['group', 'name'], expect: {} });
+var callProxyDelay  = rpc.declare({ object: 'luci.clashoo', method: 'proxy_delay',  params: ['group'], expect: {} });
 function fastResolve(promise, timeoutMs, fallback) {
   var t = new Promise(function (resolve) {
     setTimeout(function () { resolve(fallback); }, timeoutMs);
@@ -254,7 +294,7 @@ return view.extend({
         core_type: core,
         dash_port: uci.get('clashoo', 'config', 'dash_port') || '9090',
         dash_pass: uci.get('clashoo', 'config', 'dash_pass') || '',
-        panel_type: uci.get('clashoo', 'config', 'dashboard_panel') || 'metacubexd',
+        panel_type: uci.get('clashoo', 'config', 'dashboard_panel') || 'zashboard',
         proxy_mode: uci.get('clashoo', 'config', 'p_mode') || 'rule',
         tcp_mode: uci.get('clashoo', 'config', 'tcp_mode') || 'tun',
         udp_mode: uci.get('clashoo', 'config', 'udp_mode') || (uci.get('clashoo', 'config', 'tcp_mode') || 'tun'),
@@ -293,10 +333,10 @@ return view.extend({
       var link = document.createElement('link');
       link.id = 'cl-css-ext';
       link.rel = 'stylesheet';
-      link.href = L.resource('view/clashoo/clashoo.css') + '?v=20260425b1';
+      link.href = L.resource('view/clashoo/clashoo.css') + '?v=20260609b1';
       document.head.appendChild(link);
     } else {
-      document.getElementById('cl-css-ext').href = L.resource('view/clashoo/clashoo.css') + '?v=20260425b1';
+      document.getElementById('cl-css-ext').href = L.resource('view/clashoo/clashoo.css') + '?v=20260609b1';
     }
 
     this._lastSt      = st;
@@ -309,7 +349,8 @@ return view.extend({
       E('div', { 'class': 'cl-traffic-wrap', id: 'cl-traffic-wrap' }, [
         this._card('流量监控', this._renderRealtimePanel(), 'cl-card-traffic')
       ]),
-      E('div', { 'class': 'cl-controls', id: 'cl-controls' }, this._controls(st, cfgData))
+      E('div', { 'class': 'cl-controls', id: 'cl-controls' }, this._controls(st, cfgData)),
+      this._renderProxyModal()
     ]);
     this._rootEl = root;
     this._applyThemeClass();
@@ -430,6 +471,15 @@ return view.extend({
     if (/(^|\s)(light|theme-light)(\s|$)/.test(cls))
       return false;
 
+    try {
+      var links = document.querySelectorAll('link[rel="stylesheet"]');
+      for (var i = 0; i < links.length; i++) {
+        var href = String(links[i].href || '').toLowerCase();
+        if (href.indexOf('dark.css') >= 0 || href.indexOf('darkmode') >= 0 || href.indexOf('argon-dark') >= 0)
+          return true;
+      }
+    } catch (e0) {}
+
     /* Fallback: inspect sidebar brightness for themes that don't expose standard attrs */
     try {
       var byLuminance = function (node) {
@@ -470,8 +520,8 @@ return view.extend({
     return f + ' ' + c;
   },
 
-  _configuredChannel: function (family) {
-    var dcore = uci.get('clashoo', 'config', 'dcore') || '2';
+  _configuredChannel: function (family, st) {
+    var dcore = (st && st.dcore) || uci.get('clashoo', 'config', 'dcore') || '2';
     if (family === 'singbox')
       return dcore === '5' ? 'alpha' : 'stable';
     if (dcore === '1') return 'smart';
@@ -495,6 +545,19 @@ return view.extend({
     if (!wrap) return;
     wrap.innerHTML = '';
     wrap.appendChild(this._renderCoreSwitch(this._lastSt || {}));
+    wrap.appendChild(this._proxyTriggerBtn());
+  },
+
+  _showCoreSwitchHint: function (msg) {
+    var self = this;
+    self._coreSwitchMsg = msg;
+    self._refreshCoreSwitch();
+    setTimeout(function () {
+      if (self._coreSwitchMsg === msg) {
+        self._coreSwitchMsg = '';
+        self._refreshCoreSwitch();
+      }
+    }, 3500);
   },
 
   _switchCore: function (targetCore) {
@@ -502,11 +565,16 @@ return view.extend({
     if (self._coreSwitchBusy)
       return Promise.resolve();
 
+    if (targetCore === 'smart' && self._lastSt && self._lastSt.has_smart === false) {
+      self._showCoreSwitchHint('未检测到 Smart 内核；更新模型不会安装内核，请到系统页下载 Smart 版');
+      return Promise.resolve();
+    }
+
     var currentEffective = self._effectiveCore(self._lastSt || {});
     if (targetCore === currentEffective)
       return Promise.resolve();
 
-    var currentDcore = uci.get('clashoo', 'config', 'dcore') || '2';
+    var currentDcore = (self._lastSt && self._lastSt.dcore) || uci.get('clashoo', 'config', 'dcore') || '2';
     var rpcCore, nextDcore, targetLabel;
     if (targetCore === 'smart') {
       rpcCore = 'mihomo'; nextDcore = '1'; targetLabel = 'Smart';
@@ -522,6 +590,14 @@ return view.extend({
 
     return clashoo.setCore(rpcCore, nextDcore)
       .then(function (r) {
+        if (r && r.success === false && r.error === 'smart_core_missing') {
+          self._showCoreSwitchHint('未检测到 Smart 内核；更新模型不会安装内核，请到系统页下载 Smart 版');
+          throw { soft: true };
+        }
+        if (r && r.success === false && r.error === 'singbox_core_missing') {
+          self._showCoreSwitchHint('未检测到 sing-box 内核；请到系统页下载 sing-box');
+          throw { soft: true };
+        }
         if (r && r.success === false)
           throw new Error(r.message || '切换内核失败');
         self._lastSt = self._lastSt || {};
@@ -531,22 +607,19 @@ return view.extend({
         self._lastSt.health_status = 'stopped';
       })
       .then(function () {
-        /* 切到 Smart 时后端 set_core 已自动开启 smart_auto_switch；启动后 init.d
+        /* set_core auto-enables smart_auto_switch; init.d at boot
          * smart_inject 会把 url-test/load-balance 转成 Smart 策略，无需手动操作。 */
         self._coreSwitchMsg = '已切换到 ' + targetLabel + '，点击启动后生效';
         self._refreshCoreSwitch();
         return new Promise(function (resolve) { setTimeout(resolve, 500); });
       })
       .then(function () { return self._pollStatus(); })
-      .then(function () {
-        var msg = targetCore === 'smart'
-          ? '已切换 Smart 内核，Smart 策略已自动启用。点击启动即可生效。'
-          : '内核已切换：' + targetLabel + '。需要代理时请点击启动。';
-        ui.addNotification(null, E('p', msg));
-      })
       .catch(function (e) {
-        self._coreSwitchMsg = '切换失败';
-        ui.addNotification(null, E('p', '切换失败: ' + (e.message || e)));
+        if (e && e.soft)
+          return;
+        /* card already surfaces this via _coreSwitchMsg; no toast needed */
+        self._coreSwitchMsg = '切换失败：' + (e.message || e);
+        self._refreshCoreSwitch();
       })
       .then(function () {
         self._coreSwitchBusy = false;
@@ -557,19 +630,72 @@ return view.extend({
       });
   },
 
+  /* Inline panel-update feedback: button shows progress, status span shows result.
+     Replaces the old fire-and-forget toast so success/failure is visible in place. */
+  _runPanelUpdate: function (panel, btn, statusEl) {
+    var self = this;
+    if (btn.disabled) return;
+    var label = self._panelLabel(panel);
+    var orig = btn.textContent;
+    self._panelUpdateBusy = true;   /* pause overview poll so the rebuild won't wipe this feedback */
+    btn.disabled = true;
+    btn.textContent = '下载中…';
+    statusEl.textContent = '';
+    statusEl.className = 'cl-panel-status';
+
+    var done = function (cls, text) {
+      self._panelUpdateBusy = false;
+      btn.disabled = false;
+      btn.textContent = orig;
+      statusEl.textContent = text;
+      statusEl.className = 'cl-panel-status ' + cls;
+      setTimeout(function () {
+        statusEl.textContent = '';
+        statusEl.className = 'cl-panel-status';
+      }, 6000);
+    };
+
+    var polls = 0;
+    var poll = function () {
+      clashoo.panelStatus().then(function (s) {
+        s = s || {};
+        if (s.state === 'success') done('ok', '✓ ' + label + ' 已更新');
+        else if (s.state === 'error') done('err', '✗ ' + (s.msg || '更新失败'));
+        else if (polls++ >= 600) done('err', '✗ 面板更新超时');
+        else {
+          statusEl.textContent = s.msg || '正在下载…';
+          setTimeout(poll, 1200);
+        }
+      });
+    };
+
+    clashoo.updatePanel(panel)
+      .then(function (r) {
+        if (r && r.busy) {
+          statusEl.textContent = r.message || '面板正在下载';
+          setTimeout(poll, 600);
+          return;
+        }
+        if (!r || r.success === false) {
+          done('err', '✗ ' + ((r && r.message) || '提交失败'));
+          return;
+        }
+        setTimeout(poll, 600);
+      })
+      .catch(function () { done('err', '✗ 提交失败'); });
+  },
+
   _renderCoreSwitch: function (st) {
     var self = this;
     var effective = this._effectiveCore(st);
-    var statusKnown = st && typeof st.running === 'boolean';
-    var running = statusKnown && st.running === true;
-    var runningText = statusKnown ? (running ? '运行中' : '未运行') : '同步中';
-    var coreText = effective === 'singbox' ? 'sing-box' : effective === 'smart' ? 'Smart' : 'mihomo';
-    var note = this._coreSwitchMsg || ('当前内核：' + coreText + ' · ' + runningText);
+    var note = this._coreSwitchMsg || '';
 
     var mkBtn = function (core, label) {
       var active = core === effective;
+      var missingSmart = core === 'smart' && st && st.has_smart === false;
       return E('button', {
         type: 'button',
+        title: missingSmart ? '未检测到 Smart 内核；更新模型不会安装内核' : null,
         'class': 'cl-core-btn' + (active ? ' active' : ''),
         disabled: self._coreSwitchBusy ? '' : null,
         click: function (ev) {
@@ -579,14 +705,20 @@ return view.extend({
       }, label);
     };
 
-    return E('div', {
-      'class': 'cl-status-kernel' + (this._coreSwitchBusy ? ' is-busy' : ''),
-      title: note
-    }, [
-      mkBtn('mihomo', 'Mihomo'),
-      mkBtn('smart', 'Smart'),
-      mkBtn('singbox', 'Sing-box')
-    ]);
+    var children = [
+      E('div', {
+        'class': 'cl-status-kernel' + (this._coreSwitchBusy ? ' is-busy' : ''),
+        title: note || null
+      }, [
+        mkBtn('mihomo', 'Mihomo'),
+        mkBtn('smart', 'Smart'),
+        mkBtn('singbox', 'Sing-box')
+      ])
+    ];
+    if (note)
+      children.push(E('div', { 'class': 'cl-core-switch-hint' }, note));
+
+    return E('div', { 'class': 'cl-core-switch-wrap' }, children);
   },
 
   _proxyModeLabel: function (mode) {
@@ -630,7 +762,7 @@ return view.extend({
     var statusKnown = st && typeof st.running === 'boolean';
     var running = statusKnown && st.running === true;
     var health = st.health_status || 'unknown';
-    var configuredCoreLabel = this._coreLabel(st.core_type, this._configuredChannel(st.core_type));
+    var configuredCoreLabel = this._coreLabel(st.core_type, this._configuredChannel(st.core_type, st));
 
     var statusChildren = [
       !statusKnown
@@ -649,10 +781,12 @@ return view.extend({
     var statusEl = E('span', { id: 'cl-status-val' }, statusChildren);
 
     return [
-      this._card('运行状态', statusEl, 'cl-card-status', this._renderServiceSwitch(st)),
+      this._card('运行状态', statusEl, 'cl-card-status',
+        this._renderServiceSwitch(st)),
       this._card('内核切换',
         E('div', { id: 'cl-core-switch-inline-wrap' }, [
-          this._renderCoreSwitch(st)
+          this._renderCoreSwitch(st),
+          this._proxyTriggerBtn()
         ]),
         'cl-card-kernel'
       ),
@@ -763,7 +897,9 @@ return view.extend({
 
   _renderAccessRefresh: function (ac) {
     var self = this;
-    var loading = !!(this._accessRefreshing || (ac && ac.updating));
+    /* 核心未运行时访问检查无意义，强制不转圈，避免守护进程周期探测一直转 */
+    var running = !!(this._lastSt && this._lastSt.running);
+    var loading = running && !!(this._accessRefreshing || (ac && ac.updating));
     return E('button', {
       type: 'button',
       id: 'cl-access-refresh',
@@ -793,6 +929,203 @@ return view.extend({
   _toInt: function (v) {
     var n = parseInt(v, 10);
     return isFinite(n) && n > 0 ? n : 0;
+  },
+
+  /* ── 简易节点面板（模态浮层）── */
+  _delayBadge: function (ms) {
+    ms = parseInt(ms, 10) || 0;
+    if (ms <= 0) return E('span', { 'class': 'cl-dly cl-dly-x' }, '—');
+    var cls = ms < 100 ? 'cl-dly-g' : (ms < 300 ? 'cl-dly-y' : 'cl-dly-r');
+    return E('span', { 'class': 'cl-dly ' + cls }, ms + 'ms');
+  },
+
+  _pgTypeLabel: function (t) {
+    var m = { 'Selector': '选择器', 'URLTest': '自动测速', 'Fallback': '故障转移',
+              'LoadBalance': '负载均衡', 'Relay': '链式代理' };
+    return m[t] || t;
+  },
+
+  _proxyTriggerBtn: function () {
+    var self = this;
+    var btn = E('button', { 'class': 'cl-pm-open' }, '节点面板 ›');
+    btn.addEventListener('click', function () { self._openProxyModal(); });
+    return btn;
+  },
+
+  _setPmStatus: function (text, tone) {
+    var el = this._pmStatusEl;
+    if (!el) return;
+    el.textContent = text || '';
+    el.style.color = tone === 'ok' ? '#2e9b51' : (tone === 'err' ? '#d65c4a' : '');
+  },
+
+  _renderProxyModal: function () {
+    var self = this;
+    var statusEl = E('span', { 'class': 'cl-pm-st' }, '');
+    var body = E('div', { 'class': 'cl-pm-body', id: 'cl-pm-body' }, []);
+    this._pmStatusEl = statusEl;
+    this._pmBodyEl = body;
+
+    var refreshBtn = E('button', { 'class': 'cl-pm-close' }, '刷新');
+    refreshBtn.addEventListener('click', function () { self._loadProxies(); });
+    var closeBtn = E('button', { 'class': 'cl-pm-close' }, '关闭');
+    closeBtn.addEventListener('click', function () { self._closeProxyModal(); });
+
+    var modal = E('div', { 'class': 'cl-pm', id: 'cl-pm' }, [
+      E('div', { 'class': 'cl-pm-head' }, [
+        E('div', { 'class': 'cl-pm-ttl' }, [E('span', {}, '节点选择'), statusEl]),
+        E('div', { 'class': 'cl-pm-acts' }, [refreshBtn, closeBtn])
+      ]),
+      body
+    ]);
+    modal.addEventListener('click', function (ev) { ev.stopPropagation(); });
+
+    var mask = E('div', { 'class': 'cl-pm-mask', id: 'cl-pm-mask' }, [modal]);
+    mask.addEventListener('click', function () { self._closeProxyModal(); });
+    this._pmMask = mask;
+    this._pmModal = modal;
+    return mask;
+  },
+
+  _openProxyModal: function () {
+    var self = this;
+    if (!this._pmMask) return;
+    if (this._pmMask.parentNode !== document.body)
+      document.body.appendChild(this._pmMask);
+    var dark = this._isDarkUi();
+    this._pmMask.classList.toggle('cl-theme-dark', !!dark);
+    this._pmModal.classList.toggle('cl-theme-dark', !!dark);
+    this._pmMask.classList.add('cl-on');
+    this._pmModal.classList.add('cl-on');
+    if (!this._pmEscBound) {
+      this._pmEscHandler = function (ev) { if (ev.key === 'Escape') self._closeProxyModal(); };
+      document.addEventListener('keydown', this._pmEscHandler);
+      this._pmEscBound = true;
+    }
+    this._loadProxies();
+  },
+
+  _closeProxyModal: function () {
+    if (this._pmMask) this._pmMask.classList.remove('cl-on');
+    if (this._pmModal) this._pmModal.classList.remove('cl-on');
+    if (this._pmEscBound) {
+      document.removeEventListener('keydown', this._pmEscHandler);
+      this._pmEscBound = false;
+    }
+  },
+
+  _loadProxies: function () {
+    var self = this;
+    var body = this._pmBodyEl;
+    if (!body) return;
+    var st = this._lastSt || {};
+    if (!st.running) {
+      body.innerHTML = '';
+      body.appendChild(E('div', { 'class': 'cl-pm-empty' }, '核心未运行，启动后可切换节点'));
+      this._setPmStatus('未运行', 'err');
+      return;
+    }
+    body.innerHTML = '';
+    body.appendChild(E('div', { 'class': 'cl-pm-empty' }, '加载中…'));
+    this._setPmStatus('加载中…', '');
+    callProxiesList().then(function (r) {
+      var b = self._pmBodyEl;
+      if (!b) return;
+      b.innerHTML = '';
+      if (!r || !r.ok) {
+        b.appendChild(E('div', { 'class': 'cl-pm-empty' }, '无法连接核心 API，请检查运行状态'));
+        self._setPmStatus('连接失败', 'err');
+        return;
+      }
+      var groups = r.groups || [];
+      if (!groups.length) {
+        b.appendChild(E('div', { 'class': 'cl-pm-empty' }, '当前配置没有可手动切换的节点组'));
+        self._setPmStatus('无节点组', '');
+        return;
+      }
+      groups.forEach(function (g) { b.appendChild(self._renderProxyGroup(g)); });
+      self._setPmStatus('就绪 · ' + groups.length + ' 组', 'ok');
+    }).catch(function () {
+      var b = self._pmBodyEl;
+      if (b) { b.innerHTML = ''; b.appendChild(E('div', { 'class': 'cl-pm-empty' }, '加载失败')); }
+      self._setPmStatus('加载失败', 'err');
+    });
+  },
+
+  _doProxySelect: function (group, name, onOk, onFail) {
+    callProxySelect(group, name).then(function (r) {
+      if (r && r.ok) { if (onOk) onOk(); }
+      else {
+        ui.addNotification(null, E('p', group + ' 切换失败: ' + ((r && r.message) || '')));
+        if (onFail) onFail();
+      }
+    }).catch(function () {
+      ui.addNotification(null, E('p', group + ' 切换异常'));
+      if (onFail) onFail();
+    });
+  },
+
+  _renderProxyGroup: function (g) {
+    var self = this;
+    var row = E('div', { 'class': 'cl-pm-row' }, [
+      E('div', { 'class': 'cl-pm-name' }, [
+        E('span', {}, g.name),
+        E('span', { 'class': 'cl-pm-badge' }, this._pgTypeLabel(g.type))
+      ])
+    ]);
+
+    if (g.selectable) {
+      var members = g.members || [];
+      var prevVal = g.now;
+      var sel = E('select', { 'class': 'cl-pm-sel' },
+        members.map(function (m) {
+          var label = m.name + (m.delay > 0 ? '   ·   ' + m.delay + 'ms' : '');
+          return E('option', { value: m.name, selected: (m.name === g.now) ? '' : null }, label);
+        })
+      );
+      sel.addEventListener('change', function () {
+        var picked = sel.value;
+        sel.disabled = true;
+        self._doProxySelect(g.name, picked,
+          function () { prevVal = picked; sel.disabled = false; },
+          function () { sel.value = prevVal; sel.disabled = false; });
+      });
+      row.appendChild(sel);
+    } else {
+      var dmap = {};
+      (g.members || []).forEach(function (m) { dmap[m.name] = m.delay || 0; });
+      row.appendChild(E('div', { 'class': 'cl-pm-now' }, [
+        E('span', {}, (g.now || '—') + '  '),
+        this._delayBadge(dmap[g.now])
+      ]));
+    }
+
+    var testBtn = E('button', { 'class': 'cl-pm-test' }, '测速');
+    testBtn.addEventListener('click', function () {
+      testBtn.disabled = true;
+      testBtn.textContent = '测速中';
+      callProxyDelay(g.name).then(function (r) {
+        testBtn.disabled = false;
+        testBtn.textContent = '测速';
+        if (!r || !r.ok) {
+          ui.addNotification(null, E('p', g.name + ' 测速失败: ' + ((r && r.message) || '')));
+          return;
+        }
+        var fresh = {
+          name: g.name, type: g.type, now: g.now, selectable: g.selectable,
+          members: (g.members || []).map(function (m) {
+            return { name: m.name, delay: (r.delays && r.delays[m.name]) || m.delay || 0 };
+          })
+        };
+        var newRow = self._renderProxyGroup(fresh);
+        if (row.parentNode) row.parentNode.replaceChild(newRow, row);
+      }).catch(function () {
+        testBtn.disabled = false;
+        testBtn.textContent = '测速';
+      });
+    });
+    row.appendChild(testBtn);
+    return row;
   },
 
   _fmtRate: function (bytes) {
@@ -1152,7 +1485,7 @@ return view.extend({
       return E('div', { 'class': 'cl-check-updated' }, '上次检查：初始化中');
     }
     var msg = '上次检查：' + this._timeAgoText(updatedAt);
-    if (ac.updating)
+    if (ac.updating && this._accessRefreshing)
       msg += '（刷新中）';
     return E('div', { 'class': 'cl-check-updated' }, msg);
   },
@@ -1201,7 +1534,7 @@ return view.extend({
       tpMode = 'mixed';
     else if (tunLike)
       tpMode = 'tun';
-    var panelType = st.panel_type  || 'metacubexd';
+    var panelType = st.panel_type  || 'zashboard';
     var panelUrl  = this._dashboardUrl(st);
     var panels    = ['metacubexd', 'yacd', 'zashboard', 'razord'];
 
@@ -1211,6 +1544,8 @@ return view.extend({
           return E('option', { value: o[0], selected: o[0] === val ? '' : null }, o[1]);
         }));
     };
+
+    var panelStatusEl = E('span', { 'class': 'cl-panel-status' }, '');
 
     var panelSel = mkSel(panels.map(function (p) {
       return [p, self._panelLabel(p)];
@@ -1277,7 +1612,31 @@ return view.extend({
         E('div', { 'class': 'cl-ctrl-row cl-config-row' }, [
           mkSel(configs.length ? configs.map(function(c){return[c,c];}) : [['','（空）']], current,
             function (ev) {
-              clashoo.setConfig(ev.target.value).then(function () { location.reload(); });
+              var sel = ev.target;
+              var name = sel.value;
+              var prev = sel.getAttribute('data-cl-prev') || current;
+              sel.disabled = true;
+              var setter = (st.core_type === 'singbox')
+                ? clashoo.setSingboxProfile(name)
+                : clashoo.setConfig(name);
+              setter
+                .then(function (r) {
+                  if (r && r.error) {
+                    ui.addNotification(null, E('p', '切换配置失败: ' + r.error));
+                    sel.value = prev;
+                    return;
+                  }
+                  sel.setAttribute('data-cl-prev', name);
+                })
+                .catch(function (e) {
+                  ui.addNotification(null, E('p', '切换配置失败: ' + (e.message || e)));
+                  sel.value = prev;
+                })
+                .then(function () {
+                  sel.disabled = false;
+                  /* force immediate state refresh so cards get new current */
+                  return self._pollOverview(true);
+                });
             }),
           E('button', {
             'class': 'btn cbi-button-action cl-btn-update-sub',
@@ -1292,14 +1651,10 @@ return view.extend({
           E('button', {
             'class': 'btn cbi-button cl-btn-panel-update',
             click: function () {
-              var panelName = self._panelLabel(panelSel.value);
-              clashoo.updatePanel(panelSel.value).then(function () {
-                clashoo.toast(panelName + ' 更新任务已提交，请到系统/日志查看进度', {
-                  duration: 3600
-                });
-              });
+              self._runPanelUpdate(panelSel.value, this, panelStatusEl);
             }
           }, '更新'),
+          panelStatusEl,
           E('a', {
             'class': 'btn cbi-button cl-btn-panel-open',
             href: panelUrl,
@@ -1340,6 +1695,8 @@ return view.extend({
   _pollOverview: function (force) {
     this._applyThemeClass();
     if (!force && this._op) return Promise.resolve();
+    if (!force && this._coreSwitchBusy) return Promise.resolve();
+    if (!force && this._panelUpdateBusy) return Promise.resolve();
     if (!force && document.hidden) return Promise.resolve();
     var self = this;
     return rpcOverview()
@@ -1350,6 +1707,12 @@ return view.extend({
         var ac = ov.access || {};
         var stats = ov.stats || {};
 
+        /* force proxy probes down when stopped (skip daemon refresh) */
+        if (!st.running && ac && ac.proxy) {
+          var downProbe = { ok: false, state: 'down', code: '000', ok_count: 0, attempts: 1, loss: 1, avg_ms: 0 };
+          Object.keys(ac.proxy).forEach(function (k) { ac.proxy[k] = downProbe; });
+        }
+
         self._overviewLoaded = true;
         self._lastSt      = st;
         self._lastCfgData = cfgData;
@@ -1357,16 +1720,39 @@ return view.extend({
         self._writeCachedOverview(ov);
         self._refreshCoreSwitch();
 
+        /* only rebuild DOM on user-visible field changes, avoid flicker every 5s
+           尤其是切换 tab 回到 overview 时缓存数据与首次 poll 数据通常一致 */
+        var sig = JSON.stringify({
+          running: st.running,
+          health: st.health_status,
+          proxy_mode: st.proxy_mode,
+          tcp_mode: st.tcp_mode,
+          udp_mode: st.udp_mode,
+          stack: st.stack_type || st.stack,
+          config: st.config,
+          core_type: st.core_type,
+          panel_type: st.panel_type,
+          dcore: st.dcore,
+          configs: cfgData.configs || [],
+          current: cfgData.current,
+          ac_updated: ac.updated_at,
+          ac_updating: ac.updating
+        });
+        var skipRebuild = (sig === self._lastRenderSig);
+        self._lastRenderSig = sig;
+
         var cards = document.getElementById('cl-cards');
         if (!cards) return;
-        var newCards = self._cards(st, cfgData, ac);
-        cards.innerHTML = '';
-        newCards.forEach(function (card) { cards.appendChild(card); });
+        if (!skipRebuild) {
+          var newCards = self._cards(st, cfgData, ac);
+          cards.innerHTML = '';
+          newCards.forEach(function (card) { cards.appendChild(card); });
 
-        var controls = document.getElementById('cl-controls');
-        if (controls) {
-          controls.innerHTML = '';
-          self._controls(st, cfgData).forEach(function (ctrl) { controls.appendChild(ctrl); });
+          var controls = document.getElementById('cl-controls');
+          if (controls) {
+            controls.innerHTML = '';
+            self._controls(st, cfgData).forEach(function (ctrl) { controls.appendChild(ctrl); });
+          }
         }
 
         self._updateRealtimePanel(stats);
@@ -1400,6 +1786,7 @@ return view.extend({
   _manualRefreshAccess: function () {
     var self = this;
     if (self._accessRefreshing) return Promise.resolve();
+    var previousUpdatedAt = parseInt((self._lastAc && self._lastAc.updated_at) || 0, 10) || 0;
     self._accessRefreshing = true;
     self._refreshAccessCard();
 
@@ -1409,10 +1796,7 @@ return view.extend({
 
     return L.resolveDefault(trigger, { success: false })
       .then(function () {
-        return new Promise(function (resolve) { setTimeout(resolve, 250); });
-      })
-      .then(function () {
-        return self._pollAccess();
+        return self._waitAccessRefresh(previousUpdatedAt);
       })
       .catch(function () {
         return self._pollAccess();
@@ -1421,6 +1805,32 @@ return view.extend({
         self._accessRefreshing = false;
         self._refreshAccessCard();
       });
+  },
+
+  _waitAccessRefresh: function (previousUpdatedAt) {
+    var self = this;
+    var started = Date.now();
+    var maxWait = 25000;
+
+    function sleep(ms) {
+      return new Promise(function (resolve) { setTimeout(resolve, ms); });
+    }
+
+    function loop() {
+      return self._pollAccess().then(function () {
+        var ac = self._lastAc || {};
+        var updatedAt = parseInt(ac.updated_at || 0, 10) || 0;
+        if (updatedAt > previousUpdatedAt && !ac.updating)
+          return;
+        if (!ac.updating && updatedAt > 0 && (Date.now() - started) > 2500)
+          return;
+        if ((Date.now() - started) >= maxWait)
+          return;
+        return sleep(700).then(loop);
+      });
+    }
+
+    return sleep(500).then(loop);
   },
 
   _pollRealtime: function () {
@@ -1460,34 +1870,50 @@ return view.extend({
     return '健康检查中…';
   },
 
-  /* fn: fire-and-forget RPC + 独立轮询直到状态到位 */
+  /* fn: fire-and-forget RPC + 秒速轮询直到状态到位 */
+  /* toggle switch instantly (optimistic), do not wait for RPC */
   _svc: function (fn, opKey) {
     if (this._busy) return Promise.resolve();
+
+    // preflight: refuse start when no profile selected.
+    // backend select_config also defends but toast is slow, UI would flash.
+    if (opKey === 'start' || opKey === 'restart') {
+      var st0 = this._lastSt || {};
+      var hasConfig = !!(st0.config || st0.conf_path);
+      if (!hasConfig) {
+        ui.addNotification(null, E('p', '未选择配置文件，请先到「配置」页选择或上传后选中再启动'), 'warning');
+        return Promise.resolve();
+      }
+    }
+
     this._busy = true;
     var self = this;
     self._op = opKey;
 
-    var startMsgs = ['校验配置文件', '配置防火墙规则', '初始化 DNS'];
-    var stopMsgs  = ['关闭服务', '清理规则'];
-    var msgs    = opKey === 'stop' ? stopMsgs : startMsgs;
-    var animMs  = opKey === 'stop' ? 3000 : 8000;
-    var maxWait = opKey === 'stop' ? 15000 : 35000;
+    /* 立即翻转 switch 视觉 */
+    var btn = document.querySelector('.cl-service-switch');
+    if (btn) {
+      var running = btn.getAttribute('aria-pressed') === 'true';
+      var newRunning = opKey === 'start';
+      if (newRunning !== running) {
+        btn.setAttribute('aria-pressed', newRunning ? 'true' : 'false');
+        btn.className = 'cl-service-switch' + (newRunning ? ' is-on' : ' is-off');
+      }
+      self._showOpMsg(opKey === 'stop' ? '停止中…' : '启动中…');
+    }
 
-    self._startMsgAnim(msgs, animMs);
-    fn().catch(function () {});   /* fire-and-forget；超时由下面的轮询兜底 */
+    var maxWait = opKey === 'stop' ? 15000 : 35000;
+    fn().catch(function () {});   /* fire-and-forget */
 
     var started   = Date.now();
     var pollTimer = null;
 
     function finish(finalMsg) {
       if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; }
-      self._clearOpTimers();
       if (finalMsg) self._showOpMsg(finalMsg);
-      setTimeout(function () {
-        self._busy = false;
-        self._op   = null;
-        self._pollOverview(true);
-      }, finalMsg ? 900 : 0);
+      self._busy = false;
+      self._op   = null;
+      self._pollOverview(true);
     }
 
     function pollOnce() {
@@ -1498,16 +1924,16 @@ return view.extend({
           if (st.running === false)          return finish('已停止 ⚪');
         } else {
           if (st.running === true)           return finish('运行中 🟢');
-          if (st.health_status === 'fail')   return finish(null);   /* 全量刷新展示具体错误 */
+          if (st.health_status === 'fail')   return finish(null);
         }
         if (elapsed >= maxWait) return finish(null);
-        pollTimer = setTimeout(pollOnce, 1500);
+        pollTimer = setTimeout(pollOnce, 500);
       }).catch(function () {
-        if (Date.now() - started < maxWait) pollTimer = setTimeout(pollOnce, 1500);
+        if (Date.now() - started < maxWait) pollTimer = setTimeout(pollOnce, 500);
         else finish(null);
       });
     }
-    pollTimer = setTimeout(pollOnce, 1200);
+    pollTimer = setTimeout(pollOnce, 100);
   },
 
   _start:   function () { return this._svc(function () { return clashoo.start(); },   'start'); },
@@ -1515,8 +1941,13 @@ return view.extend({
   _restart: function () { return this._svc(function () { return clashoo.restart(); }, 'restart'); },
 
   _updSubs: function () {
-    return L.resolveDefault(callDownloadSubs(), {}).then(function (r) {
-      ui.addNotification(null, E('p', r.success ? '订阅更新成功' : ('更新失败: ' + (r.message || '未知错误'))));
+    return L.resolveDefault(callUpdateCurrentSubscription(), {}).then(function (r) {
+      if (r && r.reason === 'not_subscription') {
+        ui.addNotification(null, E('p', '当前配置为自定义文件，无需更新订阅'), 'info');
+        return;
+      }
+      ui.addNotification(null, E('p', r.success ? (r.message || '订阅更新成功')
+        : ('更新失败: ' + (r.message || '当前配置未记录订阅链接'))));
     });
   },
 

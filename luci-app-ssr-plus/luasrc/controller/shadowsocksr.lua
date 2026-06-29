@@ -338,14 +338,20 @@ local function global_client_running()
 		return true
 	end
 
-	if (global_type == "clash" or global_type == "tuic" or global_type == "ss")
+	if (global_type == "clash" or global_type == "v2ray" or global_type == "tuic" or global_type == "ss")
 		and process_list:find("ssr%-retcp") then
 		return true
 	end
 
-	if (global_type == "clash" or global_type == "tuic" or global_type == "ss")
+	if (global_type == "clash" or global_type == "v2ray" or global_type == "tuic" or global_type == "ss")
 		and process_list:find("mihomo")
-		and (process_list:find("/clash%-") or process_list:find("/tuic%-") or process_list:find("/ss%-")) then
+		and (process_list:find("/clash%-") or process_list:find("/v2ray%-") or process_list:find("/tuic%-") or process_list:find("/ss%-")) then
+		return true
+	end
+
+	if global_type == "socks5"
+		and process_list:find("ipt2socks")
+		and (process_list:find("%-T") or process_list:find("%-%-tcp%-only")) then
 		return true
 	end
 
@@ -361,6 +367,8 @@ local function get_active_node_runtime(sid)
 	local proto = (uci:get("shadowsocksr", sid, "v2ray_protocol") or ""):lower()
 	local backend
 	local protocol
+
+	local is_mihomo_running = luci.sys.call("pgrep -x ssr-retcp >/dev/null 2>&1") == 0
 
 	if stype == "ss" then
 		backend = translate("Mihomo")
@@ -385,7 +393,11 @@ local function get_active_node_runtime(sid)
 			shadowsocks = "Shadowsocks",
 			http = "HTTP"
 		}
-		backend = translate("Xray")
+		if is_mihomo_running then
+			backend = translate("Mihomo")
+		else
+			backend = translate("Xray")
+		end
 		if proto_map[proto] then
 			protocol = translate(proto_map[proto])
 		end
@@ -604,6 +616,10 @@ local function write_geo_json(data)
 	})
 end
 
+local function shell_quote(value)
+	return "'" .. tostring(value or ""):gsub("'", "'\\''") .. "'"
+end
+
 function index()
 	if not nixio.fs.access("/etc/config/shadowsocksr") then
 		call("act_reset")
@@ -636,6 +652,9 @@ function index()
 	entry({"admin", "services", "shadowsocksr", "run"}, call("act_status"))
 	entry({"admin", "services", "shadowsocksr", "ping"}, call("act_ping"))
 	entry({"admin", "services", "shadowsocksr", "save_order"}, call("save_order")).leaf = true
+	entry({"admin", "services", "shadowsocksr", "delete_node"}, call("act_delete_node")).leaf = true
+	entry({"admin", "services", "shadowsocksr", "add_subscribe_item"}, call("add_subscribe_item")).leaf = true
+	entry({"admin", "services", "shadowsocksr", "delete_subscribe_item"}, call("delete_subscribe_item")).leaf = true
 	entry({"admin", "services", "shadowsocksr", "toggle_subscribe_item_enabled"}, call("toggle_subscribe_item_enabled")).leaf = true
 	entry({"admin", "services", "shadowsocksr", "reset"}, call("act_reset"))
 	entry({"admin", "services", "shadowsocksr", "restart"}, call("act_restart"))
@@ -648,13 +667,17 @@ function index()
 	entry({"admin", "services", "shadowsocksr", "clash_client_policies"}, call("clash_client_policies")).leaf = true
 	entry({"admin", "services", "shadowsocksr", "clash_client_rule_save"}, call("clash_client_rule_save")).leaf = true
 	entry({"admin", "services", "shadowsocksr", "clash_client_rule_clear"}, call("clash_client_rule_clear")).leaf = true
+	entry({"admin", "services", "shadowsocksr", "fetch_certsha256"}, call("fetch_certsha256")).leaf = true
+	entry({"admin", "services", "shadowsocksr", "fetch_certbyname"}, call("fetch_certbyname")).leaf = true
 	--[[Backup]]
 	entry({"admin", "services", "shadowsocksr", "backup"}, call("create_backup")).leaf = true
 end
 
 function subscribe()
 	nixio.fs.remove(SERVER_DETECT_CACHE)
-	local ret = luci.sys.call(": > /var/log/ssrplus.log && /usr/bin/lua /usr/share/shadowsocksr/subscribe.lua >>/var/log/ssrplus.log 2>&1")
+	local sid = luci.http.formvalue("sid") or ""
+	local subscribe_arg = sid ~= "" and (" " .. luci.util.shellquote(sid)) or ""
+	local ret = luci.sys.call(": > /var/log/ssrplus.log && /usr/bin/lua /usr/share/shadowsocksr/subscribe.lua" .. subscribe_arg .. " >>/var/log/ssrplus.log 2>&1")
 	luci.http.prepare_content("application/json")
 	luci.http.write_json({ret = ret})
 end
@@ -715,36 +738,197 @@ function save_order()
 
 	if valid then
 		for offset, sid in ipairs(sids) do
-			all_sections[server_positions[page_start + offset - 1]] = sid
+			local absolute_index = page_start + offset - 1
+			local position = server_positions[absolute_index]
+			if not position then
+				valid = false
+				break
+			end
+
+			local cmd = string.format(
+				"uci -q reorder %s=%d >/dev/null 2>&1",
+				shell_quote("shadowsocksr." .. sid),
+				position - 1
+			)
+
+			if luci.sys.call(cmd) ~= 0 then
+				valid = false
+				break
+			end
+			all_sections[position] = sid
 		end
-		uci:reorder("shadowsocksr", all_sections)
-		uci:commit("shadowsocksr")
+		if valid then
+			valid = luci.sys.call("uci -q commit shadowsocksr >/dev/null 2>&1") == 0
+		end
 	end
 
 	luci.http.prepare_content("application/json")
 	luci.http.write_json({
 		ret = valid and 1 or 0,
-		count = #sids
+		count = #sids,
+		page = page,
+		page_size = page_size
 	})
+end
+
+function act_delete_node()
+	local sid = luci.http.formvalue("sid")
+
+	if not sid or sid == "" then
+		luci.http.prepare_content("application/json")
+		luci.http.write_json({ ret = 0, error = "missing sid" })
+		return
+	end
+
+	local del_cmd = luci.sys.call("uci -q delete shadowsocksr." .. sid)
+	if del_cmd ~= 0 then
+		luci.http.prepare_content("application/json")
+		luci.http.write_json({ ret = 0, error = "delete failed" })
+		return
+	end
+
+	local ret_cmd = luci.sys.call("uci -q commit shadowsocksr >/dev/null 2>&1")
+	if ret_cmd ~= 0 then
+		luci.http.prepare_content("application/json")
+		luci.http.write_json({ ret = 0, error = "commit failed" })
+		return
+	end
+
+	luci.http.prepare_content("application/json")
+	luci.http.write_json({ ret = 1, sid = sid })
+end
+
+function add_subscribe_item()
+	local sid = luci.sys.exec("uci add shadowsocksr server_subscribe_item"):gsub("%s+", "")
+
+	if not sid or sid == "" then
+		luci.http.prepare_content("application/json")
+		luci.http.write_json({ ret = 0, error = "add failed" })
+		return
+	end
+
+	local alias = string.format("Subscribe %s", sid:sub(-4))
+
+	-- set enabled
+	local subscribe_enabled = luci.sys.call("uci -q set shadowsocksr." .. sid .. ".enabled=1")
+	if subscribe_enabled ~= 0 then
+		luci.http.prepare_content("application/json")
+		luci.http.write_json({ ret = 0, error = "set enabled failed" })
+		return
+	end
+
+	-- set alias
+	local subscribe_alias = luci.sys.call("uci -q set shadowsocksr." .. sid .. ".alias='" .. alias .. "'")
+	if subscribe_alias ~= 0 then
+		luci.http.prepare_content("application/json")
+		luci.http.write_json({ ret = 0, error = "set alias failed" })
+		return
+	end
+
+	local commit_subscribe = luci.sys.call("uci -q commit shadowsocksr >/dev/null 2>&1")
+	if commit_subscribe ~= 0 then
+		luci.http.prepare_content("application/json")
+		luci.http.write_json({ ret = 0, error = "commit failed" })
+		return
+	end
+
+	luci.http.prepare_content("application/json")
+	luci.http.write_json({ ret = 1, sid = sid, alias = alias, enabled = "1" })
+end
+
+function delete_subscribe_item()
+	local sid = trim(luci.http.formvalue("sid"))
+	if sid == "" then
+		luci.http.status(400, "Bad Request")
+		luci.http.prepare_content("application/json")
+		luci.http.write_json({ ret = 0, error = "missing sid" })
+		return
+	end
+
+	local delete_subscribe_set = luci.sys.call("uci -q delete shadowsocksr." .. sid .. " 2>/dev/null")
+	if delete_subscribe_set ~= 0 then
+		luci.http.prepare_content("application/json")
+		luci.http.write_json({ ret = 0, error = "delete failed" })
+		return
+	end
+
+	-- commit
+	local delete_subscribe_cmd = luci.sys.call("uci -q commit shadowsocksr >/dev/null 2>&1")
+	if delete_subscribe_cmd ~= 0 then
+		luci.http.prepare_content("application/json")
+		luci.http.write_json({ ret = 0, error = "commit failed" })
+		return
+	end
+
+	luci.http.prepare_content("application/json")
+	luci.http.write_json({ ret = 1, sid = sid })
 end
 
 function toggle_subscribe_item_enabled()
 	local sid = trim(luci.http.formvalue("sid"))
-	local enabled = luci.http.formvalue("enabled") == "1" and "1" or "0"
+	local field = luci.http.formvalue("field")
+	local value = luci.http.formvalue("value")
 
-	if sid == "" or uci:get("shadowsocksr", sid) ~= "server_subscribe_item" then
+	-- 兼容旧调用方式（只传 enabled）
+	if not field then
+		field = "enabled"
+		value = luci.http.formvalue("enabled") == "1" and "1" or "0"
+	end
+
+	-- 参数校验
+	if sid == "" then
+		luci.http.status(400, "Bad Request")
+		luci.http.prepare_content("application/json")
+		luci.http.write_json({ ret = 0, error = "missing sid" })
+		return
+	end
+
+	-- 检查 sid 对应的 section 类型
+	if uci:get("shadowsocksr", sid) ~= "server_subscribe_item" then
 		luci.http.status(400, "Bad Request")
 		luci.http.prepare_content("application/json")
 		luci.http.write_json({ ret = 0, error = "invalid_sid" })
 		return
 	end
 
-	uci:set("shadowsocksr", sid, "enabled", enabled)
-	uci:save("shadowsocksr")
-	uci:commit("shadowsocksr")
+	-- 白名单：只允许以下字段
+	local allowed_fields = { enabled = true, alias = true, url = true }
+	if not allowed_fields[field] then
+		luci.http.status(400, "Bad Request")
+		luci.http.prepare_content("application/json")
+		luci.http.write_json({ ret = 0, error = "unsupported field" })
+		return
+	end
+
+	-- 处理字段值
+	if field == "enabled" then
+		value = (value == "1" or value == "true") and "1" or "0"
+	elseif field == "alias" or field == "url" then
+		value = value and trim(value) or ""
+	end
+
+	-- 转义 value 中的单引号（避免破坏 uci 命令）
+	local escaped_value = value:gsub("'", "'\\''")
+
+	-- 使用外部 uci 命令设置值
+	local set_cmd = string.format("uci -q set shadowsocksr.%s.%s='%s'", sid, field, escaped_value)
+	local set_ret = luci.sys.call(set_cmd .. " >/dev/null 2>&1")
+	if set_ret ~= 0 then
+		luci.http.prepare_content("application/json")
+		luci.http.write_json({ ret = 0, error = "uci set failed" })
+		return
+	end
+
+	-- 提交更改
+	local ret_cmd = luci.sys.call("uci -q commit shadowsocksr >/dev/null 2>&1")
+	if ret_cmd ~= 0 then
+		luci.http.prepare_content("application/json")
+		luci.http.write_json({ ret = 0, error = "commit failed" })
+		return
+	end
 
 	luci.http.prepare_content("application/json")
-	luci.http.write_json({ ret = 1, sid = sid, enabled = enabled })
+	luci.http.write_json({ ret = 1, sid = sid, field = field, value = value })
 end
 
 function component_status()
@@ -1095,6 +1279,84 @@ function clash_client_rule_clear()
 	})
 end
 
+function fetch_certsha256()
+	local function fetch_cert_sha256(host, port, sni, timeout)
+		if not host then return "" end
+		port = tonumber(port) or 443
+		sni = sni or host
+		timeout = tonumber(timeout) or 5
+        
+		local cmd = string.format(
+			"timeout %d openssl s_client -connect %s:%d -servername %s -showcerts </dev/null 2>/dev/null " ..
+			"| awk 'BEGIN{c=0}/BEGIN CERT/{c++} c==1{print} /END CERT/{if(c==1)exit}' " ..
+			"| openssl x509 -outform der 2>/dev/null " ..
+			"| sha256sum 2>/dev/null",
+			timeout, host, port, sni
+		)
+        
+		local out = trim(luci.sys.exec(cmd))
+
+		local fp = out:match("^([0-9a-fA-F]+)")
+		if not fp or fp:lower():match("^e3b0c44298fc1c149afbf4c8996fb924") then
+			return ""
+		end
+		return fp:upper()
+	end
+
+	local sid = luci.http.formvalue("sid") or ""
+	local address = (sid ~= "") and uci:get("shadowsocksr", sid, "server") or ""
+	local port_raw = (sid ~= "") and uci:get("shadowsocksr", sid, "server_port") or ""
+	local port = tonumber(port_raw) or 0
+	local sni = (id ~= "") and uci:get("shadowsocksr", sid, "tls_host") or ""
+	sni = (sni and sni ~= "") and sni or address
+	if address == "" or port == 0 then
+		luci.http.prepare_content("application/json")
+		luci.http.write_json({ code = 0, msg = "Address or Port is invalid" })
+		return
+	end
+	local data = fetch_cert_sha256(address, port, sni, 5)
+	luci.http.prepare_content("application/json")
+	luci.http.write_json(data ~= "" and { code = 1, data = data } or { code = 0 })
+end
+
+function fetch_certbyname()
+	local function fetch_cert_byname(host, port, sni, timeout)
+		if not host then return "" end
+		port = tonumber(port) or 443
+		sni = sni or host
+		timeout = tonumber(timeout) or 5
+        
+		local cmd = string.format(
+			"timeout %d openssl s_client -connect %s:%d -servername %s -showcerts </dev/null 2>/dev/null " ..
+			"| openssl x509 -noout -subject 2>/dev/null " ..
+			"| awk '{gsub(/^.*=[[:space:]]*/, \"\"); gsub(/,.*$/, \"\"); print}'",
+			timeout, host, port, sni
+		)
+        
+		local out = trim(luci.sys.exec(cmd))
+        
+		if out == "" then
+			return ""
+		end
+		return out
+	end
+
+	local sid = luci.http.formvalue("sid") or ""
+	local address = (sid ~= "") and uci:get("shadowsocksr", sid, "server") or ""
+	local port_raw = (sid ~= "") and uci:get("shadowsocksr", sid, "server_port") or ""
+	local port = tonumber(port_raw) or 0
+	local sni = (id ~= "") and uci:get("shadowsocksr", sid, "tls_host") or ""
+	sni = (sni and sni ~= "") and sni or address
+	if address == "" or port == 0 then
+		luci.http.prepare_content("application/json")
+		luci.http.write_json({ code = 0, msg = "Address or Port is invalid" })
+		return
+	end
+	local data = fetch_cert_byname(address, port, sni, 5)
+	luci.http.prepare_content("application/json")
+	luci.http.write_json(data ~= "" and { code = 1, data = data } or { code = 0 })
+end
+
 function act_ping()
 	local e = {}
 	local domain = luci.http.formvalue("domain")
@@ -1153,7 +1415,7 @@ function act_ping()
 
 		if not e.ping then
 			local icmp_cmd = string.format("ping -c 1 -W 1 %s 2>/dev/null | grep -o 'time=[0-9.]*' | cut -d= -f2", domain)
-			e.ping = tonumber(luci.sys.exec(icmp_cmd))
+			e.ping = normalize_ping_ms(tonumber(luci.sys.exec(icmp_cmd)))
 		end
 		if not e.ping then
 			e.ping = 0
@@ -1163,7 +1425,7 @@ function act_ping()
 		local result = ""
 		local success = false
 		local icmp_cmd = string.format("ping -c 1 -W 1 %s 2>/dev/null | grep -o 'time=[0-9.]*' | cut -d= -f2", domain)
-		e.ping = tonumber(luci.sys.exec(icmp_cmd))
+		e.ping = normalize_ping_ms(tonumber(luci.sys.exec(icmp_cmd)))
 		-- WebSocket 探测 (适用于域名，或带 SNI 的 IP)
 		if not is_ip or probe_host ~= domain then
 			local resolve_arg = ""
@@ -1234,7 +1496,7 @@ function act_ping()
 		end
 		if not e.ping then
 			local icmp_cmd = string.format("ping -c 1 -W 1 %s 2>/dev/null | grep -o 'time=[0-9.]*' | cut -d= -f2", domain)
-			e.ping = tonumber(luci.sys.exec(icmp_cmd))
+			e.ping = normalize_ping_ms(tonumber(luci.sys.exec(icmp_cmd)))
 		end
 
 		if not e.ping then
@@ -1365,11 +1627,12 @@ function act_reset()
 end
 
 function act_restart()
+	luci.sys.call("/etc/init.d/shadowsocksr restart > /dev/null 2>&1 &")
 	luci.http.redirect(luci.dispatcher.build_url("admin", "services", "shadowsocksr"))
 end
 
 function act_delete()
-	luci.sys.call("/etc/init.d/shadowsocksr restart &")
+	luci.sys.call("/etc/init.d/shadowsocksr restart > /dev/null 2>&1 &")
 	luci.http.redirect(luci.dispatcher.build_url("admin", "services", "shadowsocksr", "servers"))
 end
 

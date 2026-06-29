@@ -48,7 +48,7 @@ resolve_real_ip() {
 	done
 }
 
-set -- -4 -L --max-time 3 --connect-timeout 2 -s -o /dev/null -w '%{http_code} %{time_total}'
+set -- -4 -L --max-time 5 --connect-timeout 3 -s -o /dev/null -w '%{http_code} %{time_total}'
 if [ "$mode" = "direct" ]; then
 	# 强制不走任何代理，避免误读 http_proxy 环境变量
 	set -- "$@" --noproxy '*'

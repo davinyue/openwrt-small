@@ -181,6 +181,7 @@ if is_finded("chinadns-ng") then
 	o:value("4.2.2.4:53", translate("Level 3 Public DNS (4.2.2.4)"))
 	o:value("1.1.1.1:53", translate("Cloudflare DNS (1.1.1.1)"))
 	o:depends("pdnsd_enable", "6")
+	o.default = "8.8.4.4:53"
 	o.description = translate(
     	"<ul>" ..
     	"<li>" .. translate("Custom DNS Server format as IP:PORT (default: 8.8.4.4:53)") .. "</li>" .. 
@@ -196,7 +197,7 @@ if is_finded("chinadns-ng") then
 	o:depends("pdnsd_enable", "6")
 
 	o = s:option(Value, "chinadns_forward", translate("Domestic DNS Server"))
-	o:value("", translate("Disable ChinaDNS-NG"))
+	o:value("none", translate("Disable ChinaDNS-NG"))
 	o:value("wan", translate("Use DNS from WAN"))
 	o:value("wan_114", translate("Use DNS from WAN and 114DNS"))
 	o:value("114.114.114.114:53", translate("Nanjing Xinfeng 114DNS (114.114.114.114)"))
@@ -206,12 +207,12 @@ if is_finded("chinadns-ng") then
 	o:value("101.226.4.6:53", translate("360 Security DNS (China Telecom) (101.226.4.6)"))
 	o:value("123.125.81.6:53", translate("360 Security DNS (China Unicom) (123.125.81.6)"))
 	o:value("1.2.4.8:53", translate("CNNIC SDNS (1.2.4.8)"))
-	o:depends({pdnsd_enable = "1", run_mode = "router"})
 	o:depends({pdnsd_enable = "6", run_mode = "router"})
+	o.default = "wan"
 	o.description = translate("Custom DNS Server format as IP:PORT (default: disabled)")
 	o.validate = function(self, value, section)
 		if (section and value) then
-			if value == "wan" or value == "wan_114" then
+			if value == "none" or value == "wan" or value == "wan_114" then
 				return value
 			end
 

@@ -60,6 +60,9 @@
   --cl-live-shell-bg: rgba(0, 0, 0, 0.02);
   --cl-live-card-bg: rgba(0, 0, 0, 0.03);
   --cl-live-border: rgba(0, 0, 0, 0.12);
+  --cl-chart-up: rgba(120, 130, 145, 0.55);
+  --cl-chart-down: rgba(120, 130, 145, 0.4);
+  --cl-chart-conn: rgba(120, 130, 145, 0.32);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -117,51 +120,57 @@
   align-items: flex-start;
 }
 
+/* 内核切换分段控件：紧凑分段，选中段实心主色高亮 + 白字。明暗自适应。 */
 .cl-wrap .cl-status-kernel {
   display: inline-flex;
   align-items: center;
   gap: 2px;
-  height: 26px;
-  padding: 1px;
+  padding: 2px;
   border-radius: 8px;
   border: 0;
-  background: rgba(0, 0, 0, 0.03);
+  background: rgba(128, 128, 128, 0.1);
   box-shadow: none !important;
 }
 
 .cl-wrap .cl-status-kernel .cl-core-btn {
   height: 24px;
   line-height: 24px;
-  min-width: 58px;
-  padding: 0 6px;
+  min-width: 60px;
+  padding: 0 10px;
   border: 0;
   border-radius: 6px;
   background: transparent;
   box-shadow: none !important;
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 500;
+  color: var(--cl-label-muted);
+  opacity: 0.6;
   cursor: pointer;
-  opacity: 0.82;
+  transition: background-color 0.18s ease, color 0.18s ease, opacity 0.18s ease;
 }
 
-.cl-wrap .cl-status-kernel .cl-core-btn.active {
-  background: rgba(var(--cl-primary-rgb), 0.16);
+.cl-wrap .cl-status-kernel .cl-core-btn:hover {
+  opacity: 0.85;
+}
+
+/* 选中段实心色：固定青色，四主题（Bootstrap / Argon × 明暗）统一，
+   略带向下变暗的渐变增加层次。 */
+.cl-wrap .cl-status-kernel .cl-core-btn.active,
+.cl-wrap .cl-status-kernel .cl-core-btn.active:hover {
+  background: linear-gradient(#3886a1, #2f7288);
   border-color: transparent;
-  color: var(--cl-primary);
-  box-shadow: none !important;
-  font-weight: 500;
+  color: #fff;
   opacity: 1;
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12) !important;
 }
 
 .cl-wrap .cl-status-kernel .cl-core-btn:disabled {
-  opacity: 0.5;
   cursor: not-allowed;
 }
 
-body.dark .cl-wrap .cl-status-kernel,
-html[data-theme="dark"] .cl-wrap .cl-status-kernel,
-html[data-bs-theme="dark"] .cl-wrap .cl-status-kernel {
-  background: rgba(255, 255, 255, 0.06);
+.cl-wrap .cl-status-kernel.is-busy {
+  opacity: 0.6;
 }
 
 .cl-wrap .btn.cbi-button-action,
@@ -452,9 +461,14 @@ html[data-darkmode="true"] .cl-wrap .cl-mode-tag {
   font-size: 13px !important;
 }
 
+/* 表单说明文字统一弱化：明显比标题与字段标签暗，拉开视觉层次 */
+.cl-wrap.cl-config-page .cbi-value-description,
 .cl-wrap.cl-config-page .cbi-section-descr,
-.cl-wrap.cl-config-page .cbi-value-helptext {
-  color: var(--cl-label-muted) !important;
+.cl-wrap.cl-config-page .cbi-value-helptext,
+.cl-wrap.cl-system-page .cbi-value-description,
+.cl-wrap.cl-system-page .cbi-section-descr,
+.cl-wrap.cl-system-page .cbi-value-helptext {
+  color: rgba(120, 130, 150, 0.9) !important;
   font-size: 12px !important;
 }
 
@@ -610,6 +624,26 @@ html[data-darkmode="true"] .cl-wrap .cl-mode-tag {
   color: rgba(190, 62, 62, 0.92) !important;
 }
 
+/* 中性按钮（检查更新 / 导出备份 / 导入还原）：浅灰描边，
+   避免落到主题原生深灰填充（Argon 浅色下尤为突兀）。明暗自适应。 */
+.cl-wrap.cl-config-page .cbi-button-neutral,
+.cl-wrap.cl-config-page .btn.cbi-button-neutral,
+.cl-wrap.cl-system-page .cbi-button-neutral,
+.cl-wrap.cl-system-page .btn.cbi-button-neutral {
+  background: rgba(128, 128, 128, 0.1) !important;
+  border: 1px solid rgba(128, 128, 128, 0.24) !important;
+  color: var(--cl-label-muted) !important;
+  box-shadow: none !important;
+}
+
+.cl-wrap.cl-config-page .cbi-button-neutral:hover,
+.cl-wrap.cl-config-page .btn.cbi-button-neutral:hover,
+.cl-wrap.cl-system-page .cbi-button-neutral:hover,
+.cl-wrap.cl-system-page .btn.cbi-button-neutral:hover {
+  background: rgba(128, 128, 128, 0.18) !important;
+  border-color: rgba(128, 128, 128, 0.32) !important;
+}
+
 /* Config page de-colorization: keep primary accents only */
 .cl-wrap.cl-config-page .cbi-button-action,
 .cl-wrap.cl-config-page .btn.cbi-button-action,
@@ -751,7 +785,8 @@ html[data-bs-theme="dark"] .cl-wrap .cl-active-badge {
   display: flex;
   align-items: center;
   gap: 8px;
-  width: min(100%, 480px);
+  /* 322 = 输入框 210（与面板端口/面板 UI 对齐）+ 两个 48px 按钮 + 两段 8px 间距 */
+  width: min(100%, 322px);
 }
 
 .cl-wrap .cl-pass-wrap input[type="password"],
@@ -910,6 +945,24 @@ html[data-bs-theme="dark"] .cl-wrap .cl-arch-badge-rec {
   border-color: rgba(104, 199, 135, 0.3);
 }
 
+.cl-wrap.cl-system-page .cl-component-arch-sel {
+  background: rgba(46, 170, 92, 0.12) !important;
+  color: #24844d !important;
+  border-color: rgba(46, 170, 92, 0.28) !important;
+  font-weight: 700 !important;
+}
+
+.cl-wrap.cl-system-page.cl-theme-dark .cl-component-arch-sel,
+body.dark .cl-wrap.cl-system-page .cl-component-arch-sel,
+body[data-theme="dark"] .cl-wrap.cl-system-page .cl-component-arch-sel,
+html.dark .cl-wrap.cl-system-page .cl-component-arch-sel,
+html[data-theme="dark"] .cl-wrap.cl-system-page .cl-component-arch-sel,
+html[data-bs-theme="dark"] .cl-wrap.cl-system-page .cl-component-arch-sel {
+  background: rgba(104, 199, 135, 0.16) !important;
+  color: rgba(198, 246, 211, 0.95) !important;
+  border-color: rgba(104, 199, 135, 0.3) !important;
+}
+
 .cl-wrap .cl-live-unit {
   font-size: 11px;
   margin-left: 3px;
@@ -957,7 +1010,7 @@ html[data-bs-theme="dark"] .cl-wrap .cl-arch-badge-rec {
 }
 
 .cl-wrap .cl-live-card.is-zero .cl-live-bg-chart {
-  opacity: 0.35;
+  opacity: 0;
 }
 
 .cl-wrap .cl-live-card.is-active .cl-live-bg-chart {
@@ -1191,23 +1244,6 @@ html[data-bs-theme="dark"] .cl-wrap .cl-live-num {
   background: transparent !important;
 }
 
-.cl-wrap.cl-overview-page .cl-status-kernel {
-  border: 0 !important;
-  box-shadow: none !important;
-  background: rgba(var(--primary-rgb, var(--cl-primary-rgb)), 0.08) !important;
-}
-
-.cl-wrap.cl-overview-page .cl-status-kernel .cl-core-btn {
-  border: 0 !important;
-  box-shadow: none !important;
-}
-
-.cl-wrap.cl-overview-page .cl-status-kernel .cl-core-btn.active {
-  border: 0 !important;
-  box-shadow: none !important;
-  background: rgba(var(--primary-rgb, var(--cl-primary-rgb)), 0.24) !important;
-}
-
 .cl-wrap.cl-overview-page .cl-check-item img,
 .cl-wrap.cl-overview-page .cl-check-main img,
 .cl-wrap.cl-overview-page .cl-check-icon-wrap,
@@ -1277,6 +1313,21 @@ html[data-bs-theme="dark"] .cl-wrap .cl-live-num {
   align-items: center;
   gap: 8px;
 }
+
+/* inline result of panel update (replaces the old toast) */
+.cl-wrap.cl-overview-page .cl-panel-status {
+  font-size: 13px;
+  line-height: 1.2;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity .2s ease;
+}
+.cl-wrap.cl-overview-page .cl-panel-status.ok,
+.cl-wrap.cl-overview-page .cl-panel-status.err {
+  opacity: 1;
+}
+.cl-wrap.cl-overview-page .cl-panel-status.ok  { color: #16a34a; }
+.cl-wrap.cl-overview-page .cl-panel-status.err { color: #dc2626; }
 
 .cl-wrap.cl-overview-page .cl-ctrl-row select,
 .cl-wrap.cl-overview-page .cl-ctrl-row .cbi-input-select,
@@ -1496,6 +1547,7 @@ html[data-bs-theme="dark"] .cl-wrap .cl-live-num {
   background: transparent !important;
   border: 0 !important;
   box-shadow: none !important;
+  padding: 16px 20px !important;
   font-size: 0.95rem !important;
   font-weight: 600 !important;
   color: var(--title-color, var(--cl-title-color)) !important;
@@ -1516,11 +1568,7 @@ html[data-bs-theme="dark"] .cl-wrap .cl-live-num {
 }
 
 .cl-wrap.cl-config-page #cl-panel-proxy .cbi-value-title,
-.cl-wrap.cl-config-page #cl-panel-dns .cbi-value-title,
-.cl-wrap.cl-config-page #cl-panel-proxy .cbi-section-descr,
-.cl-wrap.cl-config-page #cl-panel-dns .cbi-section-descr,
-.cl-wrap.cl-config-page #cl-panel-proxy .cbi-value-helptext,
-.cl-wrap.cl-config-page #cl-panel-dns .cbi-value-helptext {
+.cl-wrap.cl-config-page #cl-panel-dns .cbi-value-title {
   color: var(--cl-label-muted) !important;
 }
 
@@ -1566,8 +1614,9 @@ html[data-bs-theme="dark"] .cl-wrap .cl-live-num {
   padding: 8px 12px !important;
 }
 
+/* 大文件回退的原生 textarea 编辑器尺寸（CM 自带尺寸，不受此规则影响）*/
 .cl-wrap.cl-config-page #cl-panel-profiles .cl-json-editor,
-.cl-wrap.cl-config-page #cl-panel-subs .cl-other-editor {
+.cl-wrap.cl-config-page #cl-panel-subs .cl-json-editor {
   min-height: 420px !important;
   height: auto !important;
   padding: 10px 14px !important;
@@ -1608,6 +1657,7 @@ html[data-bs-theme="dark"] .cl-wrap .cl-live-num {
 /* ===== System page consistency pass (kernel/rules/logs) ===== */
 .cl-wrap.cl-system-page #cl-panel-kernel .cbi-section,
 .cl-wrap.cl-system-page #cl-panel-rules .cbi-section,
+.cl-wrap.cl-system-page #cl-panel-kernel .cl-component-card,
 .cl-wrap.cl-system-page #cl-panel-logs .cl-section.cl-card {
   background: var(--cl-card-bg) !important;
   border: 1px solid var(--cl-surface-border) !important;
@@ -1618,13 +1668,23 @@ html[data-bs-theme="dark"] .cl-wrap .cl-live-num {
   margin: 0 0 14px !important;
 }
 
+/* 组件更新外层容器：保持透明，让内容卡片与其他页面满宽对齐 */
+.cl-wrap.cl-system-page #cl-panel-kernel .cl-component-map {
+  background: transparent !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+  margin: 0 0 14px !important;
+}
+
 .cl-wrap.cl-system-page #cl-panel-kernel .cbi-section > h3,
+.cl-wrap.cl-system-page #cl-panel-kernel .cl-component-head > div > h4,
 .cl-wrap.cl-system-page #cl-panel-rules .cbi-section > h3,
 .cl-wrap.cl-system-page #cl-panel-logs .cl-section > h4 {
   display: flex !important;
   align-items: center !important;
   gap: 8px !important;
   margin: 0 0 12px !important;
+  padding: 0 !important;
   background: transparent !important;
   border: 0 !important;
   box-shadow: none !important;
@@ -1635,6 +1695,7 @@ html[data-bs-theme="dark"] .cl-wrap .cl-live-num {
 }
 
 .cl-wrap.cl-system-page #cl-panel-kernel .cbi-section > h3::before,
+.cl-wrap.cl-system-page #cl-panel-kernel .cl-component-head > div > h4::before,
 .cl-wrap.cl-system-page #cl-panel-rules .cbi-section > h3::before,
 .cl-wrap.cl-system-page #cl-panel-logs .cl-section > h4::before {
   content: '' !important;
@@ -1647,11 +1708,16 @@ html[data-bs-theme="dark"] .cl-wrap .cl-live-num {
 
 .cl-wrap.cl-system-page #cl-panel-kernel .cbi-value-title,
 .cl-wrap.cl-system-page #cl-panel-rules .cbi-value-title,
-.cl-wrap.cl-system-page #cl-panel-kernel .cbi-section-descr,
-.cl-wrap.cl-system-page #cl-panel-rules .cbi-section-descr,
-.cl-wrap.cl-system-page #cl-panel-kernel .cbi-value-helptext,
-.cl-wrap.cl-system-page #cl-panel-rules .cbi-value-helptext {
+.cl-wrap.cl-system-page #cl-panel-kernel .cl-component-desc {
   color: var(--cl-label-muted) !important;
+}
+
+/* 备份与还原：按钮行，自动换行以适配移动端 */
+.cl-wrap.cl-system-page #cl-panel-kernel .cl-backup-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
 }
 
 .cl-wrap.cl-system-page #cl-panel-kernel .cbi-value-field,
@@ -1659,6 +1725,25 @@ html[data-bs-theme="dark"] .cl-wrap .cl-live-num {
 .cl-wrap.cl-system-page #cl-panel-kernel .cl-control-wrap,
 .cl-wrap.cl-system-page #cl-panel-rules .cl-control-wrap {
   max-width: 600px !important;
+}
+
+.cl-wrap.cl-system-page #cl-panel-kernel .cl-component-arch-row,
+.cl-wrap.cl-system-page #cl-panel-kernel .cl-component-row,
+.cl-wrap.cl-system-page #cl-panel-kernel .cl-component-log {
+  background: var(--cl-card-bg) !important;
+  border: 1px solid var(--cl-surface-border) !important;
+  border-radius: var(--border-radius, 8px) !important;
+  box-shadow: none !important;
+}
+
+.cl-wrap.cl-system-page #cl-panel-kernel .cl-component-adv-bar {
+  background: var(--cl-control-bg) !important;
+  border: 1px solid var(--cl-control-border) !important;
+  border-radius: var(--border-radius, 8px) !important;
+}
+
+.cl-wrap.cl-system-page #cl-panel-kernel .cl-component-adv-bar:hover {
+  background: var(--cl-primary-soft) !important;
 }
 
 .cl-wrap.cl-system-page #cl-panel-kernel .cbi-value-field input:not([type="checkbox"]):not([type="radio"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="file"]),
@@ -1745,6 +1830,26 @@ html[data-bs-theme="dark"] .cl-wrap .cl-live-num {
   border-bottom: 1px solid rgba(var(--primary-rgb, var(--cl-primary-rgb)), 0.2) !important;
   border-radius: 0 !important;
   box-shadow: none !important;
+}
+
+.cl-wrap.cl-system-page #cl-panel-kernel .cl-component-arch-row .cl-component-arch-sel {
+  background: rgba(46, 170, 92, 0.12) !important;
+  color: #24844d !important;
+  border: 1px solid rgba(46, 170, 92, 0.28) !important;
+  border-radius: 6px !important;
+  box-shadow: none !important;
+  font-weight: 700 !important;
+}
+
+.cl-wrap.cl-system-page.cl-theme-dark #cl-panel-kernel .cl-component-arch-row .cl-component-arch-sel,
+body.dark .cl-wrap.cl-system-page #cl-panel-kernel .cl-component-arch-row .cl-component-arch-sel,
+body[data-theme="dark"] .cl-wrap.cl-system-page #cl-panel-kernel .cl-component-arch-row .cl-component-arch-sel,
+html.dark .cl-wrap.cl-system-page #cl-panel-kernel .cl-component-arch-row .cl-component-arch-sel,
+html[data-theme="dark"] .cl-wrap.cl-system-page #cl-panel-kernel .cl-component-arch-row .cl-component-arch-sel,
+html[data-bs-theme="dark"] .cl-wrap.cl-system-page #cl-panel-kernel .cl-component-arch-row .cl-component-arch-sel {
+  background: rgba(104, 199, 135, 0.16) !important;
+  color: rgba(198, 246, 211, 0.95) !important;
+  border-color: rgba(104, 199, 135, 0.3) !important;
 }
 
 /* ===== Overview status spacing + semantic run state ===== */
@@ -1840,6 +1945,49 @@ html[data-bs-theme="dark"] .cl-wrap .cl-live-num {
   box-sizing: border-box;
 }
 
+/* issue #14: DynamicList 窄屏自适应 — 行宽跟容器走、输入框可收缩，
+   避免删除(×)/添加(+)按钮在窄手机上被挤出屏幕。
+   仅在窄屏触发；桌面端沿用 LuCI 默认尺寸，避免不同 section 的父容器宽度差异
+   把 DynamicList 撑到 600/1450 等不同长度，造成同页上下输入框宽窄不一。 */
+@media (max-width: 768px) {
+  .cl-wrap .cbi-dynlist {
+    display: flex !important;
+    flex-direction: column;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+  .cl-wrap .cbi-dynlist .item,
+  .cl-wrap .cbi-dynlist .add-item {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+  .cl-wrap .cbi-dynlist .item > span {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .cl-wrap .cbi-dynlist .add-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .cl-wrap .cbi-dynlist .add-item > .cbi-input-text,
+  .cl-wrap .cbi-dynlist .add-item > input[type="text"] {
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: 100% !important;
+  }
+}
+
+/* 一键测速并应用：状态文案 — 浅色主题下与同页 .cbi-value-description
+   (Fake-IP / Redir-Host 单选描述)保持同色，视觉一致 */
+.cl-wrap.cl-theme-light .cl-dns-auto-status {
+  color: rgba(120, 130, 150, 0.9) !important;
+}
+
 /* Smart 策略设置 — 行动按钮 + 当前版本说明（桌面端：横排，移动端：换行） */
 .cl-smart-action-row {
   display: flex;
@@ -1891,7 +2039,7 @@ html[data-bs-theme="dark"] .cl-wrap .cl-live-num {
    浅色主题对比度修复 (Argon light / Bootstrap light)
    - getThemeClass() 优先检测 dark.css 是否加载，返回 cl-theme-light
    - overview 页面不在选择器内，不受影响
-   - 核心思路：表单容器灰色底，section 白卡片浮在上面
+   - section 使用白卡片，外层容器保持透明满宽
    ══════════════════════════════════════════════════════════ */
 
 /* 1. CSS 变量覆盖 — 实色值取代半透明，确保白底上清晰可见 */
@@ -1906,13 +2054,13 @@ html[data-bs-theme="dark"] .cl-wrap .cl-live-num {
   --cl-input-border: #c5c9d2;
 }
 
-/* 2. 表单容器灰色底：白卡片自然浮出 */
+/* 2. 表单外层透明满宽：与订阅页一致，不额外压缩内容区 */
 .cl-wrap.cl-theme-light.cl-config-page .cbi-map,
 .cl-wrap.cl-theme-light.cl-system-page .cbi-map {
-  background: #e8eaf0 !important;
-  padding: 14px !important;
-  border-radius: 14px !important;
-  margin-top: 4px !important;
+  background: transparent !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+  margin-top: 0 !important;
 }
 
 /* 3. Section 白底 — config & system 页面共用 */

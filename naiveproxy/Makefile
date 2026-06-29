@@ -5,10 +5,11 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=naiveproxy
-PKG_VERSION:=148.0.7778.96-3
+PKG_REAL_VERSION:=149.0.7827.114-1
+PKG_VERSION:=$(subst -,.,$(PKG_REAL_VERSION))
 PKG_RELEASE:=1
 
-# intel 80386 & riscv64 & cortex-a76
+ARCH_PREBUILT:=$(ARCH_PACKAGES)
 ifeq ($(ARCH_PREBUILT),aarch64_cortex-a76)
   ARCH_PREBUILT:=aarch64_generic
 else ifeq ($(ARCH_PREBUILT),i386_pentium-mmx)
@@ -19,55 +20,55 @@ else ifeq ($(ARCH_PREBUILT),riscv64_riscv64)
   ARCH_PREBUILT:=riscv64
 endif
 
-ifeq ($(ARCH_PACKAGES),aarch64_cortex-a53)
-  PKG_HASH:=bbde023c1dbfe7bdad216bafb6313ab541ed77ad9f7d0d82460757918cae6df9
-else ifeq ($(ARCH_PACKAGES),aarch64_cortex-a72)
-  PKG_HASH:=9a64e5c07891e8b3022259011d3191074470c6e89c8810aba545626b9eece8ee
-else ifeq ($(ARCH_PACKAGES),aarch64_generic)
-  PKG_HASH:=1b716eb1d7de64efa3f2ffd8715d4544a7eac94cab531ff4d40cf7145589d9e5
-else ifeq ($(ARCH_PACKAGES),arm_arm1176jzf-s_vfp)
-  PKG_HASH:=7dbe00c794688d0e06584a68b04b94bcfba7ef3aacb72076124a9ba67028f8d3
-else ifeq ($(ARCH_PACKAGES),arm_arm926ej-s)
-  PKG_HASH:=51006b0fab95ebfc9fb11f0e758c040c7652420419d9a774cea0dcc227a85e4e
-else ifeq ($(ARCH_PACKAGES),arm_cortex-a15_neon-vfpv4)
-  PKG_HASH:=e0d1cd847e2328f55199fd314f6b6e31e7b15c0411f97567515e2b2e8d420c42
-else ifeq ($(ARCH_PACKAGES),arm_cortex-a5_vfpv4)
-  PKG_HASH:=01e13dc837ce980833393d6dc8e49ed5f0324746d4d88efbcd34c8d8f3007b2d
-else ifeq ($(ARCH_PACKAGES),arm_cortex-a7)
-  PKG_HASH:=0c10d087bf3a16e9b9443464ccacc392ecf71b96443e2eb01509252528acbfa7
-else ifeq ($(ARCH_PACKAGES),arm_cortex-a7_neon-vfpv4)
-  PKG_HASH:=af51b4f5fe1b9cd03655771b62a4a206d7b276e418a23fbffeb76b6d7fd882f4
-else ifeq ($(ARCH_PACKAGES),arm_cortex-a7_vfpv4)
-  PKG_HASH:=4c1b616e1af9aa39511cfd8e63c0686f0ff59999f3419493a373e2398ad15322
-else ifeq ($(ARCH_PACKAGES),arm_cortex-a8_vfpv3)
-  PKG_HASH:=f7ec9f48c42e31c6f77f86fd66de15230efa3b668c87807f0441e72a52d544ab
-else ifeq ($(ARCH_PACKAGES),arm_cortex-a9)
-  PKG_HASH:=d6a6724da33133990e0f09dbdb33d8f853ff900d3c8e64242f3715a0b0ac8c18
-else ifeq ($(ARCH_PACKAGES),arm_cortex-a9_neon)
-  PKG_HASH:=2df21a2d16294d5c02af008ba6f6c7dd7cc06ba8440695a36e4982eab946fafe
-else ifeq ($(ARCH_PACKAGES),arm_cortex-a9_vfpv3-d16)
-  PKG_HASH:=e949c098d17bf64aeb0dfc0e5a107ac63ac7dd02272d18a1402939a5ffdefbf5
-else ifeq ($(ARCH_PACKAGES),arm_mpcore)
-  PKG_HASH:=860314efc8fc133c5a027bd98e748ae0700c0832da392f7d713907861f17311c
-else ifeq ($(ARCH_PACKAGES),arm_xscale)
-  PKG_HASH:=edc5a3eff99a917f4bd1bd63c99c9184c09a991d36fa4e09c58cfa16da0f959d
-else ifeq ($(ARCH_PACKAGES),mipsel_24kc)
-  PKG_HASH:=3387e2218d001a389db2a934d2e065465de405a2c5a33992f38403db77a7e70a
-else ifeq ($(ARCH_PACKAGES),mipsel_mips32)
-  PKG_HASH:=7688a70061b5e72612bd73a52a4ce48a30890c8a97a3d40520fa209bf7b1288a
-else ifeq ($(ARCH_PACKAGES),riscv64)
-  PKG_HASH:=2fe630d1671737cea393d696464ae76a31bc7d10d152ea5738fb792fb79a3843
-else ifeq ($(ARCH_PACKAGES),x86)
-  PKG_HASH:=9460e0a0a083798e282dc54c48ff6b75b0ee37a811065454c7c10e19a36300ac
-else ifeq ($(ARCH_PACKAGES),x86_64)
-  PKG_HASH:=1a52c96e15ce3ac0069ca7ff7eb8807f86c661dd62eb76cf37c8b7ff066d9443
+ifeq ($(ARCH_PREBUILT),aarch64_cortex-a53)
+  PKG_HASH:=f47f3563547df291179faedce1cbaea79d3308d9b514ab45cd9a48ef91b16004
+else ifeq ($(ARCH_PREBUILT),aarch64_cortex-a72)
+  PKG_HASH:=720506fb399fad7721ebafa6d79c62afa5af6e2129963d34c4fe9eae5e21271e
+else ifeq ($(ARCH_PREBUILT),aarch64_generic)
+  PKG_HASH:=ae9c706226534fa5d0eda08f4a9d7503284abef5d786af5158b744fff6f29ac3
+else ifeq ($(ARCH_PREBUILT),arm_arm1176jzf-s_vfp)
+  PKG_HASH:=7377bb778a50133da75693f5a13b2a5ea71ff187c074f29d003e6a5a60b945f9
+else ifeq ($(ARCH_PREBUILT),arm_arm926ej-s)
+  PKG_HASH:=a43eb9984a93212df55ab47f66dd2dc8cbeb1eda807d9936fb28fe5b58f38991
+else ifeq ($(ARCH_PREBUILT),arm_cortex-a15_neon-vfpv4)
+  PKG_HASH:=d74106a600a9a22dfb727b30753c6a97d22616a5db690d83ef9166a5288b776c
+else ifeq ($(ARCH_PREBUILT),arm_cortex-a5_vfpv4)
+  PKG_HASH:=5a121b951bd4dbc19599fdfcde61249a1afc8cd492f290b782808297e987cfab
+else ifeq ($(ARCH_PREBUILT),arm_cortex-a7)
+  PKG_HASH:=a1e7cab958cc4912d65d00fc56144102d88792886bc4d3fc77fad2306ecb2d38
+else ifeq ($(ARCH_PREBUILT),arm_cortex-a7_neon-vfpv4)
+  PKG_HASH:=24bda5d57d206f91341be3cc7da6ab57342f2232b7e725295b1f928bcecc51ac
+else ifeq ($(ARCH_PREBUILT),arm_cortex-a7_vfpv4)
+  PKG_HASH:=13e20e649a226fbb879c1d571caa18bc40bdf27d90a1391172754bcb14ac6b74
+else ifeq ($(ARCH_PREBUILT),arm_cortex-a8_vfpv3)
+  PKG_HASH:=4bb88189ceb131136a72e19650a8b495b2124762a20b9a4dad0f2da6a296f8b5
+else ifeq ($(ARCH_PREBUILT),arm_cortex-a9)
+  PKG_HASH:=9a9913aab430e5f319ce1efdf9e673c12174eb5977596f6b6af8c69f5be095e4
+else ifeq ($(ARCH_PREBUILT),arm_cortex-a9_neon)
+  PKG_HASH:=9cb857ad352a7fafc06569aaae2a90d43fc5ad33a383686b56dbd508c6caa3c3
+else ifeq ($(ARCH_PREBUILT),arm_cortex-a9_vfpv3-d16)
+  PKG_HASH:=89582a47cc611e5caa51e720a13139cd87b3b22105c204afaa8744ad8ddca0a5
+else ifeq ($(ARCH_PREBUILT),arm_mpcore)
+  PKG_HASH:=3f8a2513ac301a16344b24544f86e4b62355622ec8dc9c6757b0faee231a7560
+else ifeq ($(ARCH_PREBUILT),arm_xscale)
+  PKG_HASH:=2ca1330ed5dd42a92221e32e5a769d19ac87787b0f4cf6a3dbe065241f16dd4d
+else ifeq ($(ARCH_PREBUILT),mipsel_24kc)
+  PKG_HASH:=a24acff64dc71603d46951b4f1496e3704ef60d17e25b221fa1664d37e1d375b
+else ifeq ($(ARCH_PREBUILT),mipsel_mips32)
+  PKG_HASH:=3ecc3c6796cd26dec68b6e6989bbd2636502e735323c81c954441431678b45dc
+else ifeq ($(ARCH_PREBUILT),riscv64)
+  PKG_HASH:=f72aeda71c6da0b75ccf2a09f2a963e750aba9f18f7a849fd09bcbfa89514199
+else ifeq ($(ARCH_PREBUILT),x86)
+  PKG_HASH:=b3513fee31ec503a3835579d211f5d0aa70e2d46b17eda363d42841d7ea15552
+else ifeq ($(ARCH_PREBUILT),x86_64)
+  PKG_HASH:=f1a1742f78f0b4b7fa36f8f4600598579b048da6c033c353633b396ec24c1bf2
 else
   PKG_HASH:=dummy
 endif
 
-PKG_SOURCE:=naiveproxy-v$(PKG_VERSION)-openwrt-$(ARCH_PACKAGES).tar.xz
-PKG_SOURCE_URL:=https://github.com/klzgrad/naiveproxy/releases/download/v$(PKG_VERSION)/
-PKG_BUILD_DIR:=$(BUILD_DIR)/naiveproxy-v$(PKG_VERSION)-openwrt-$(ARCH_PACKAGES)
+PKG_SOURCE:=naiveproxy-v$(PKG_REAL_VERSION)-openwrt-$(ARCH_PREBUILT).tar.xz
+PKG_SOURCE_URL:=https://github.com/klzgrad/naiveproxy/releases/download/v$(PKG_REAL_VERSION)/
+PKG_BUILD_DIR:=$(BUILD_DIR)/naiveproxy-v$(PKG_REAL_VERSION)-openwrt-$(ARCH_PACKAGES)
 
 PKG_LICENSE:=BSD 3-Clause
 PKG_LICENSE_FILES:=LICENSE
