@@ -10,18 +10,28 @@ INTERVAL_FIXED="${ACCESS_CHECK_INTERVAL:-}"
 
 mkdir -p "$RUNDIR"
 if ! mkdir "$LOCK_DIR" 2>/dev/null; then
-	exit 0
+	old_pid="$(cat "$PID_FILE" 2>/dev/null)"
+	if [ -n "$old_pid" ] && [ -d "/proc/$old_pid" ] && \
+		tr '\0' ' ' <"/proc/$old_pid/cmdline" 2>/dev/null | grep -q 'access_check_daemon\.sh'; then
+		exit 0
+	fi
+	rm -rf "$LOCK_DIR" "$PID_FILE" >/dev/null 2>&1
+	mkdir "$LOCK_DIR" 2>/dev/null || exit 0
 fi
 
 cleanup() {
 	rm -rf "$LOCK_DIR" "$PID_FILE"
 }
-trap cleanup EXIT INT TERM
+trap cleanup EXIT
+trap 'cleanup; exit 0' INT TERM
 
 echo "$$" >"$PID_FILE"
 
 while :; do
+	[ "$(uci -q get clashoo.config.enable 2>/dev/null)" = "1" ] || break
 	/usr/share/clashoo/net/access_check_cache.sh >/dev/null 2>&1 || true
+	# 每轮顺手卡一下 core.log 大小（tmpfs 很小，跑飞会写满 /tmp）
+	sh /usr/share/clashoo/lib/core_log_guard.sh >/dev/null 2>&1 || true
 	if [ -n "$INTERVAL_FIXED" ]; then
 		sleep "$INTERVAL_FIXED"
 	else

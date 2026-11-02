@@ -1,32 +1,41 @@
 <script type="text/javascript">
 //<![CDATA[
 	var componentMeta = {
+		mainprogram: {
+			label: '<%:SSR Plus+ Main Program%>',
+			help: '<%:The online upgrade downloads the latest luci-app-ssr-plus package from fw876/helloworld releases and installs the matching IPK or APK package for this system.%>'
+		},
 		xray: {
 			label: '<%:Xray-core%>',
-			help: '<%:The online upgrade downloads the matching Xray-core linux archive for the current ARCH from the official GitHub release page.%>'
+			help: '<%:The online upgrade downloads and installs the matching Xray-core package for this system from fw876/helloworld releases.%>'
 		},
 		mihomo: {
 			label: '<%:Mihomo%>',
-			help: '<%:The online upgrade only tracks the latest stable Mihomo release and downloads the matching linux archive for the current ARCH from the official GitHub release page.%>'
+			help: '<%:The online upgrade downloads and installs the matching Mihomo IPK or APK package for this system from fw876/helloworld releases.%>'
 		},
 		naiveproxy: {
 			label: '<%:NaiveProxy%>',
-			help: '<%:The online upgrade tracks the latest NaiveProxy release and prefers OpenWrt static archives matching the current ARCH before falling back to other release assets.%>'
+			help: '<%:The online upgrade downloads and installs the matching NaiveProxy package for this system from fw876/helloworld releases.%>'
 		}
 	};
 
 	var geoMeta = {
 		country_mmdb: {
 			label: '<%:Country MMDB%>',
-			help: '<%:Update the Country.mmdb database used by Mihomo/Clash runtime when available.%>'
+			help: '<%:Update the Country.mmdb database used by Xray/V2Ray runtime when available.%>'
 		},
 		geosite: {
-			label: '<%:GeoSite Database%>',
-			help: '<%:Update the GeoSite.dat database used by Mihomo/Clash runtime when available.%>'
+			label: '<%:OpenClash GeoSite Database%>',
+			help: '<%:Update the GeoSite.dat database used by Mihomo/Clash runtime when available.%>',
+			require: '/etc/openclash'
 		},
-		v2ray_geo: {
-			label: '<%:V2Ray GEO Databases%>',
-			help: '<%:Update geoip.dat and geosite.dat used by Xray/V2Ray runtime when available.%>'
+		v2ray_geoip: {
+			label: '<%:V2Ray GeoIP Databases%>',
+			help: '<%:Update the geoip.dat used by Xray/V2Ray runtime when available.%>'
+		},
+		v2ray_geosite: {
+			label: '<%:V2Ray GeoSite Databases%>',
+			help: '<%:Update the geosite.dat used by Xray/V2Ray runtime when available.%>'
 		}
 	};
 
@@ -46,12 +55,14 @@
 		'mihomo binary not found in archive': '<%:mihomo binary not found in archive%>',
 		'naive binary not found in archive': '<%:naive binary not found in archive%>',
 		'Install failed': '<%:Install failed%>',
-		'Installed binary failed to run': '<%:Installed binary failed to run%>'
+		'Installed binary failed to run': '<%:Installed binary failed to run%>',
+		'Unsupported package manager': '<%:Unsupported package manager%>',
+		'Installed package check failed': '<%:Installed package check failed%>'
 	};
 
 	function selectedComponent() {
 		var selector = document.getElementById('component-selector');
-		return selector ? selector.value : 'xray';
+		return selector ? selector.value : 'mainprogram';
 	}
 
 	function selectedMirror() {
@@ -74,6 +85,7 @@
 
 		var map = {
 			unsupported_arch: '<%:Unsupported ARCH%>',
+			unsupported_package_manager: '<%:Unsupported package manager%>',
 			fetch_failed: '<%:Failed to fetch release metadata%>',
 			asset_not_found: '<%:Matching release asset not found%>',
 			unsupported_component: '<%:Unsupported component%>',
@@ -84,6 +96,7 @@
 	}
 
 	function renderComponentInfo(data, checkedRemote) {
+		// console.log('Geo data:', data);
 		var panel = document.getElementById('component-status');
 		var upgradeButton = document.getElementById('component-upgrade');
 		var action = document.getElementById('component-action');
@@ -107,6 +120,9 @@
 
 		html.push('<div><strong><%:Installed Version%>:</strong> ' + (data.current_version || '<%:Not installed%>') + '</div>');
 		html.push('<div><strong><%:Latest Version%>:</strong> ' + (data.latest_version || '<%:Unknown%>') + '</div>');
+		if (data.package_manager) {
+			html.push('<div><strong><%:Package Manager%>:</strong> ' + data.package_manager + '</div>');
+		}
 		html.push('<div><strong><%:Current ARCH%>:</strong> ' + (data.arch || '<%:Unknown%>') + '</div>');
 		html.push('<div><strong><%:Release Asset%>:</strong> ' + (data.asset || '<%:Unknown%>') + '</div>');
 
@@ -182,6 +198,7 @@
 			mirror: mirror
 		}, function() {
 			queryLocalComponentInfo();
+			queryLocalGeoInfo();
 		});
 	}
 
@@ -194,7 +211,41 @@
 		return geoMeta[component] ? geoMeta[component].help : '';
 	}
 
-	function renderGeoInfo(data) {
+	function loadGeoComponent() {
+		var url = '<%=luci.dispatcher.build_url("admin", "services", "shadowsocksr", "geo_component")%>';
+		var selector = document.getElementById('geo-selector');
+		if (!selector)
+			return;
+
+		XHR.get(url, {}, function(x, rv) {
+			if (!rv || !Array.isArray(rv.component))
+				return;
+
+			var fragment = document.createDocumentFragment();
+			for (var i = 0; i < rv.component.length; i++) {
+				var comp = rv.component[i];
+				var meta = geoMeta[comp];
+				if (!meta)
+					continue;
+
+				var option = document.createElement('option');
+				option.value = comp;
+				option.textContent = meta.label;
+				fragment.appendChild(option);
+			}
+
+			selector.innerHTML = '';
+			selector.appendChild(fragment);
+
+			if (selector.options.length > 0) {
+				selector.selectedIndex = 0;
+				onGeoChange();
+			}
+		});
+	}
+
+	function renderGeoInfo(data, checkedRemote) {
+		// console.log('Geo data:', data);
 		var panel = document.getElementById('geo-status');
 		var upgradeButton = document.getElementById('geo-upgrade');
 		var action = document.getElementById('geo-action');
@@ -217,11 +268,23 @@
 		}
 
 		html.push('<div><strong><%:Current Version%>:</strong> ' + (data.current_version || '<%:File Not Exist%>') + '</div>');
-		if (data.component !== 'v2ray_geo' && data.current_version_extra) {
+		html.push('<div><strong><%:Latest Version%>:</strong> ' + (data.latest_version || '<%:Unknown%>') + '</div>');
+		var installed = data.installed !== undefined ? data.installed : (data.current_version ? true : false);
+		html.push('<div><strong><%:Installed%>:</strong> ' + (installed ? '<%:Yes%>' : '<%:No%>') + '</div>');
+		if (data.component !== 'v2ray_geoip' && data.current_version_extra) {
+			html.push('<div><strong><%:Additional Version%>:</strong> ' + data.current_version_extra + '</div>');
+		}
+		if (data.component !== 'v2ray_geosite' && data.current_version_extra) {
 			html.push('<div><strong><%:Additional Version%>:</strong> ' + data.current_version_extra + '</div>');
 		}
 		if (data.error) {
 			html.push('<div style="color:red"><%:Status%>: ' + displayError(data.error) + '</div>');
+		} else if (!checkedRemote) {
+			html.push('<div style="color:#666"><%:Status%>: <%:No Check%></div>');
+		} else if (data.can_upgrade) {
+			html.push('<div style="color:#d48806"><%:Status%>: <%:Upgrade available%></div>');
+		} else if (data.latest_version) {
+			html.push('<div style="color:green"><%:Status%>: <%:Already up to date%></div>');
 		} else if (data.message) {
 			html.push('<div style="color:green"><%:Status%>: ' + (data.success ? displayMessage(data.message) : (data.message || '<%:Unknown%>')) + '</div>');
 		} else {
@@ -230,7 +293,7 @@
 
 		panel.innerHTML = html.join('');
 		if (upgradeButton) {
-			upgradeButton.disabled = false;
+			upgradeButton.disabled = !!data.error || !checkedRemote || !data.latest_version || !data.can_upgrade;
 		}
 		if (action) {
 			action.innerHTML = data.message
@@ -239,26 +302,28 @@
 		}
 	}
 
-	function queryGeoInfo(button) {
+	function queryGeoInfo(button, doUpgrade) {
 		var component = selectedGeoComponent();
 		var mirror = selectedMirror();
 		var action = document.getElementById('geo-action');
-		var url = '<%=luci.dispatcher.build_url("admin", "services", "shadowsocksr", "geo_upgrade")%>';
+		var url = doUpgrade
+			? '<%=luci.dispatcher.build_url("admin", "services", "shadowsocksr", "geo_upgrade")%>'
+			: '<%=luci.dispatcher.build_url("admin", "services", "shadowsocksr", "geo_status")%>';
 
 		if (button) {
 			button.disabled = true;
-			button.value = '<%:Checking...%>';
+			button.value = doUpgrade ? '<%:Upgrading...%>' : '<%:Checking...%>';
 		}
 
 		if (action) {
-			action.innerHTML = '<%:Processing...%>';
+			action.innerHTML = doUpgrade ? '<%:Processing...%>' : '';
 		}
 
 		XHR.get(url, { component: component, mirror: mirror }, function(x, rv) {
-			renderGeoInfo(rv);
+			renderGeoInfo(rv, true);
 			if (button) {
 				button.disabled = false;
-				button.value = '<%:CHECK AND UPDATE%>';
+				button.value = doUpgrade ? '<%:Upgrade%>' : '<%:Check Update%>';
 			}
 		});
 	}
@@ -272,7 +337,7 @@
 			component: selectedGeoComponent(),
 			mirror: selectedMirror()
 		}, function(x, rv) {
-			renderGeoInfo(rv);
+			renderGeoInfo(rv, false);
 		});
 	}
 
@@ -280,9 +345,18 @@
 		queryLocalGeoInfo();
 	}
 
+	function selectedGeoComponent() {
+		var selector = document.getElementById('geo-selector');
+		return selector ? selector.value : 'country_mmdb';
+	}
+
+	function geoHelp(component) {
+		return geoMeta[component] ? geoMeta[component].help : '';
+	}
+
 	window.setTimeout(function() {
 		onComponentChange();
-		onGeoChange();
+		loadGeoComponent()
 	}, 0);
 //]]>
 </script>
@@ -391,6 +465,7 @@
 								<span><%:Package Name%></span>
 							</div>
 							<select id="component-selector" class="cbi-input-select component-selector" onchange="onComponentChange()">
+								<option value="mainprogram"><%:SSR Plus+ Main Program%></option>
 								<option value="xray"><%:Xray-core%></option>
 								<option value="mihomo"><%:Mihomo%></option>
 								<option value="naiveproxy"><%:NaiveProxy%></option>
@@ -426,8 +501,9 @@
 							</div>
 							<select id="geo-selector" class="cbi-input-select component-selector" onchange="onGeoChange()">
 								<option value="country_mmdb"><%:Country MMDB%></option>
-								<option value="geosite"><%:GeoSite Database%></option>
-								<option value="v2ray_geo"><%:V2Ray GEO Databases%></option>
+								<option value="geosite"><%:OpenClash GeoSite Database%></option>
+								<option value="v2ray_geoip"><%:V2Ray GeoIP Databases%></option>
+								<option value="v2ray_geosite"><%:V2Ray GeoSite Databases%></option>
 							</select>
 						</div>
 					</div>
@@ -436,7 +512,8 @@
 					<div id="geo-status"><em><%:Collecting data...%></em></div>
 					<div class="component-upgrade-help" id="geo-help"></div>
 					<div class="component-upgrade-actions">
-						<input type="button" class="btn cbi-button cbi-button-apply" id="geo-upgrade" value="<%:CHECK AND UPDATE%>" onclick="queryGeoInfo(this)" />
+						<input type="button" class="btn cbi-button cbi-button-reload" value="<%:Check Update%>" onclick="queryGeoInfo(this, false)" />
+						<input type="button" class="btn cbi-button cbi-button-apply" id="geo-upgrade" value="<%:Upgrade%>" onclick="queryGeoInfo(this, true)" />
 					</div>
 					<div class="component-upgrade-result" id="geo-action"></div>
 				</div>

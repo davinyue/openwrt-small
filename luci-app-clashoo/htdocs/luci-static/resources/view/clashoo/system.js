@@ -5,6 +5,7 @@
 'require ui';
 'require poll';
 'require rpc';
+'require fs';
 'require tools.clashoo as clashoo';
 
 function getThemeClass() {
@@ -36,9 +37,13 @@ var callHostHints = rpc.declare({
   expect: { '': {} }
 });
 
-var callBackupExport = rpc.declare({ object: 'luci.clashoo', method: 'backup_export', expect: {} });
-var callBackupImport = rpc.declare({ object: 'luci.clashoo', method: 'backup_import', params: ['data'], expect: {} });
-var callBackupReset  = rpc.declare({ object: 'luci.clashoo', method: 'backup_reset',  expect: {} });
+var callBackupExportPrepare = rpc.declare({ object: 'luci.clashoo', method: 'backup_export_prepare', expect: {} });
+var callBackupExportCleanup = rpc.declare({ object: 'luci.clashoo', method: 'backup_export_cleanup', params: ['path'], expect: {} });
+var callBackupImportPrepare = rpc.declare({ object: 'luci.clashoo', method: 'backup_import_prepare', expect: {} });
+var callBackupImportChunk = rpc.declare({ object: 'luci.clashoo', method: 'backup_import_chunk', params: ['path', 'offset', 'data'], expect: {} });
+var callBackupImportCleanup = rpc.declare({ object: 'luci.clashoo', method: 'backup_import_cleanup', params: ['path'], expect: {} });
+var callBackupImportFile = rpc.declare({ object: 'luci.clashoo', method: 'backup_import_file', params: ['name', 'path'], expect: {} });
+var callBackupReset = rpc.declare({ object: 'luci.clashoo', method: 'backup_reset', expect: {} });
 
 var CSS = [
   '.cl-wrap{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",sans-serif}',
@@ -120,7 +125,20 @@ var CSS = [
   '.cl-panel .cbi-section{margin-bottom:12px}',
   '.cl-wrap .cbi-section>h3,.cl-wrap .cbi-value-title,.cl-wrap .cbi-section-descr,.cl-wrap .cbi-value-helptext{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",sans-serif !important}',
   '.cl-wrap .cbi-input-text,.cl-wrap .cbi-input-select,.cl-wrap select,.cl-wrap input,.cl-wrap textarea,.cl-wrap .btn,.cl-wrap .cbi-button{font-size:13px !important;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",sans-serif !important}',
-  '.cl-wrap .btn,.cl-wrap .cbi-button{padding:4px 10px;line-height:1.35}'
+  '.cl-wrap .btn,.cl-wrap .cbi-button{padding:4px 10px;line-height:1.35}',
+  '#cbi-clashoo-lan_acl{overflow-x:visible!important}',
+  '#cbi-clashoo-lan_acl .cbi-section-table{display:flex;width:100%;overflow:visible!important;flex-direction:column;border:0!important}',
+  '#cbi-clashoo-lan_acl .cbi-section-thead{display:none}',
+  '#cbi-clashoo-lan_acl .cbi-section-tbody{display:flex;width:100%;flex-direction:column}',
+  '#cbi-clashoo-lan_acl .cbi-section-table-row{display:flex;width:100%;padding:14px 0;border-top:1px solid rgba(128,128,128,.16);flex-direction:column;align-items:stretch}',
+  '#cbi-clashoo-lan_acl .cbi-section-table-row:first-child{border-top:0}',
+  '#cbi-clashoo-lan_acl .cl-acl-empty-row,#cbi-clashoo-lan_acl .cl-acl-empty-row>*{border:0!important;box-shadow:none!important}',
+  '#cbi-clashoo-lan_acl .cl-acl-value{width:100%;border:0!important;box-sizing:border-box}',
+  '#cbi-clashoo-lan_acl .cl-acl-value .cbi-dropdown[open]>ul.dropdown{width:max-content;min-width:100%;max-width:calc(100vw - 48px)}',
+  '@media(max-width:600px){#cbi-clashoo-lan_acl .cl-acl-value .cbi-dropdown[open]>ul.dropdown{width:100%!important;min-width:0;max-width:100%}#cbi-clashoo-lan_acl .cl-acl-value .cbi-dropdown[open]>ul.dropdown>li{height:auto;white-space:normal;overflow-wrap:anywhere;line-height:1.35}}',
+  '#cbi-clashoo-lan_acl .cbi-section-actions{display:flex!important;justify-content:flex-end;width:auto!important;padding:8px 0 0!important;border:0!important}',
+  '#cbi-clashoo-lan_acl .cbi-section-actions>div{display:flex;gap:8px}',
+  '#cbi-clashoo-lan_acl .cbi-section-create{padding-top:10px}'
 ].join('');
 
 /* component update: main area = clashoo/client only; rest in collapsible */
@@ -148,6 +166,81 @@ function decorateSystemForm(root) {
     if (sections[j] && sections[j].classList)
       sections[j].classList.add('cl-form-card');
   }
+}
+
+function normalizeLanAclLayout(root) {
+  var rows = root.querySelectorAll('#cbi-clashoo-lan_acl .cbi-section-table-row');
+  for (var r = 0; r < rows.length; r++) {
+    if (!rows[r].querySelector('input, select, button, .cbi-dropdown'))
+      rows[r].classList.add('cl-acl-empty-row');
+  }
+
+  var cells = root.querySelectorAll('#cbi-clashoo-lan_acl .cbi-section-table-row > td.cbi-value-field:not(.cl-acl-value)');
+  for (var i = 0; i < cells.length; i++) {
+    var cell = cells[i];
+    var control = cell.firstElementChild;
+    if (!control)
+      continue;
+
+    cell.parentElement.classList.add('cbi-section-node', 'cl-acl-node');
+
+    var field = document.createElement('div');
+    field.className = 'cbi-value-field';
+    field.appendChild(control);
+
+    var label = document.createElement('label');
+    label.className = 'cbi-value-title';
+    label.textContent = cell.getAttribute('data-title') || '';
+
+    cell.textContent = '';
+    cell.className = 'cbi-value cl-acl-value';
+    cell.appendChild(label);
+    cell.appendChild(field);
+  }
+}
+
+function syncLanAclControlWidth(root) {
+  var reference = root.querySelector('#cbi-clashoo-config-bypass_port_mode select');
+  if (!reference)
+    return;
+
+  var referenceWidth = reference.getBoundingClientRect().width;
+  if (!referenceWidth)
+    return;
+
+  var section = root.querySelector('#cbi-clashoo-lan_acl');
+  var sectionRect = section.getBoundingClientRect();
+  var sectionStyle = window.getComputedStyle(section);
+  var contentRight = sectionRect.right - parseFloat(sectionStyle.paddingRight || 0);
+  var lists = root.querySelectorAll('#cbi-clashoo-lan_acl .cbi-dynlist');
+  for (var i = 0; i < lists.length; i++) {
+    var left = lists[i].getBoundingClientRect().left;
+    var width = Math.min(referenceWidth, contentRight - left);
+    lists[i].style.width = Math.max(0, width) + 'px';
+    lists[i].style.minWidth = '0';
+    lists[i].style.maxWidth = 'none';
+
+    var controls = lists[i].querySelectorAll('.add-item, .cbi-dropdown');
+    for (var j = 0; j < controls.length; j++) {
+      controls[j].style.width = '100%';
+      controls[j].style.minWidth = '0';
+      controls[j].style.maxWidth = '100%';
+      controls[j].style.boxSizing = 'border-box';
+    }
+  }
+}
+
+function watchLanAclLayout(root) {
+  normalizeLanAclLayout(root);
+  syncLanAclControlWidth(root);
+  var observer = new MutationObserver(function () {
+    normalizeLanAclLayout(root);
+    syncLanAclControlWidth(root);
+  });
+  observer.observe(root, { childList: true, subtree: true });
+  window.addEventListener('resize', function () {
+    syncLanAclControlWidth(root);
+  });
 }
 
 function randomSecret(len) {
@@ -196,7 +289,7 @@ function enhanceDashPasswordField(root) {
   var eyeBtn = E('button', {
     type: 'button',
     'class': 'btn cbi-button cl-pass-btn',
-    title: '显示/隐藏',
+    title: _("Show/Hide"),
     click: function (ev) {
       ev.preventDefault();
       var show = input.type === 'password';
@@ -215,7 +308,7 @@ function enhanceDashPasswordField(root) {
       eyeBtn.textContent = '🙈';
       input.dispatchEvent(new Event('change', { bubbles: true }));
     }
-  }, '随机');
+  }, _("Random"));
 
   wrap.appendChild(eyeBtn);
   wrap.appendChild(genBtn);
@@ -290,9 +383,9 @@ function waitForCoreTarget(target, attempts, sawRestart) {
     if (sawRestart && selected && st.running && st.health_status !== 'stopped' && st.health_status !== 'fail')
       return st;
     if (selected && st.health_status === 'fail')
-      throw new Error('新内核启动失败，请查看内核日志');
+      throw new Error(_("The new core failed to start, please check the core log"));
     if (attempts <= 0)
-      throw new Error('等待新内核启动超时，请查看内核日志');
+      throw new Error(_("Timeout waiting for new core to start, please check the core log"));
     return new Promise(function (resolve) {
       setTimeout(resolve, 600);
     }).then(function () { return waitForCoreTarget(target, attempts - 1, sawRestart); });
@@ -319,13 +412,55 @@ function rememberTab(key, id) {
     window.location.hash = id;
 }
 
+function readBackupSliceBase64(file, start, end) {
+  return new Promise(function (resolve, reject) {
+    var reader = new FileReader();
+    reader.onload = function () {
+      var result = String(reader.result || '');
+      var comma = result.indexOf(',');
+      if (comma < 0)
+        reject(new Error(_("Unable to read backup file")));
+      else
+        resolve(result.substring(comma + 1));
+    };
+    reader.onerror = function () {
+      reject(reader.error || new Error(_("Unable to read backup file")));
+    };
+    reader.readAsDataURL(file.slice(start, end));
+  });
+}
+
+function uploadBackupChunks(file, path) {
+  var offset = 0;
+  var chunkSize = 32 * 1024;
+
+  function next() {
+    if (offset >= file.size)
+      return Promise.resolve();
+    var end = Math.min(offset + chunkSize, file.size);
+    var expected = end;
+    return readBackupSliceBase64(file, offset, end)
+      .then(function (data) { return callBackupImportChunk(path, offset, data); })
+      .then(function (r) {
+        if (!r || !r.success)
+          throw new Error((r && r.message) || _("Upload failed"));
+        if (parseInt(r.offset, 10) !== expected)
+          throw new Error(_("Upload offset mismatch"));
+        offset = expected;
+        return next();
+      });
+  }
+
+  return next();
+}
+
 return view.extend({
   _tab:    'kernel',
   _logTab: 'plugin',
 
   load: function () {
     return Promise.all([
-      fastResolve(clashoo.getCpuArch(), 1200, ''),
+      fastResolve(clashoo.getCpuArch(), 5000, ''),
       fastResolve(clashoo.getLogStatus(), 1200, {}),
       fastResolve(clashoo.readLog(), 1200, ''),
       uci.load('clashoo'),
@@ -350,19 +485,19 @@ return view.extend({
       var link = document.createElement('link');
       link.id = 'cl-css-ext';
       link.rel = 'stylesheet';
-      link.href = L.resource('view/clashoo/clashoo.css') + '?v=20260609b1';
+      link.href = L.resource('view/clashoo/clashoo.css') + '?v=20260806a1';
       document.head.appendChild(link);
     } else {
-      document.getElementById('cl-css-ext').href = L.resource('view/clashoo/clashoo.css') + '?v=20260609b1';
+      document.getElementById('cl-css-ext').href = L.resource('view/clashoo/clashoo.css') + '?v=20260806a1';
     }
 
     // restore last-viewed tab so save/apply reloads stay put instead of jumping to kernel
     this._tab = readSavedTab('clashoo.system.tab', this._tab || 'kernel', ['kernel', 'rules', 'logs']);
     rememberTab('clashoo.system.tab', this._tab);
     var tabs = [
-      { id: 'kernel', label: '内核与数据' },
-      { id: 'rules',  label: '规则与控制' },
-      { id: 'logs',   label: '日志' }
+      { id: 'kernel', label: _("Core and Data") },
+      { id: 'rules',  label: _("Rules and Control") },
+      { id: 'logs',   label: _("Log") }
     ];
     var tabEls = {}, panelEls = {};
 
@@ -438,17 +573,17 @@ return view.extend({
       click: function (ev) {
         ev.preventDefault();
         refreshBtn.disabled = true;
-        refreshBtn.textContent = '检查中…';
+        refreshBtn.textContent = _("Checking…");
         self._refreshComponentUpdatePanel(listEl, logEl, true);
       }
-    }, '检查更新');
+    }, _("Check Updates"));
     this._compRefreshBtn = refreshBtn;
 
     /* advanced: core/data, collapsed by default to keep page compact.
        CPU arch stays outside — it decides core binary arch */
     var advWrap = E('div', { 'class': 'cl-component-adv cl-closed' }, [
       E('div', { 'class': 'cl-component-adv-bar' }, [
-        E('span', {}, '高级设置（内核 / 数据组件）'),
+        E('span', {}, _("Advanced Settings (core / data components)")),
         E('span', { 'class': 'cl-component-adv-chevron' }, '›')
       ]),
       E('div', { 'class': 'cl-component-adv-body' }, [advListEl])
@@ -463,8 +598,8 @@ return view.extend({
       E('div', { 'class': 'cl-component-card' }, [
         E('div', { 'class': 'cl-component-head' }, [
           E('div', {}, [
-            E('h4', {}, '组件更新'),
-            E('div', { 'class': 'cl-component-sub' }, '按组件单独更新，便于定位失败。点「检查更新」获取最新版本。')
+            E('h4', {}, _("Component Updates")),
+            E('div', { 'class': 'cl-component-sub' }, _("Update components individually. Click Check Updates to refresh versions."))
           ]),
           refreshBtn
         ]),
@@ -478,93 +613,112 @@ return view.extend({
     this._refreshComponentUpdatePanel(listEl, logEl, false);
   },
 
-  /* 备份与还原：折腾内核/配置前的兜底。导出当前配置为 JSON 文件随时可导入还原；
+  /* 备份与还原：折腾内核/配置前的兜底。导出当前配置为压缩包，避免 RPC 大包限制；
      还原默认配置则把 UCI 设置重置为出厂值（订阅/配置文件保留）。仅含配置，不含内核。 */
   _buildBackupPanel: function (container) {
-    function stamp() {
-      var d = new Date();
-      function p(n) { return (n < 10 ? '0' : '') + n; }
-      return d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate()) +
-             '-' + p(d.getHours()) + p(d.getMinutes());
-    }
-
-    var exportBtn = E('button', { 'class': 'btn cbi-button cbi-button-neutral' }, '导出备份');
+    var exportBtn = E('button', { 'class': 'btn cbi-button cbi-button-neutral' }, _("Export Backup"));
     exportBtn.addEventListener('click', function (ev) {
       ev.preventDefault();
       exportBtn.disabled = true;
       var orig = exportBtn.textContent;
-      exportBtn.textContent = '导出中…';
+      exportBtn.textContent = _("Exporting…");
       var done = function () { exportBtn.disabled = false; exportBtn.textContent = orig; };
-      callBackupExport().then(function (r) {
-        done();
+      var exportPath = '';
+      callBackupExportPrepare().then(function (r) {
         if (!r || !r.success) {
-          clashoo.toast('导出失败：' + ((r && r.message) || '未知错误'), { kind: 'err' });
-          return;
+          throw new Error((r && r.message) || _("Unknown error"));
         }
-        var text = JSON.stringify({ manifest: r.manifest, files: r.files || {} }, null, 2);
-        var url = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
-        var a = E('a', { href: url, download: 'clashoo-backup-' + stamp() + '.json' });
+        exportPath = r.path;
+        return fs.read_direct(r.path, 'blob').then(function (blob) {
+          return { blob: blob, filename: r.filename || 'clashoo-backup.tar.gz' };
+        });
+      }).then(function (download) {
+        var url = URL.createObjectURL(download.blob);
+        var a = E('a', { href: url, download: download.filename });
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
-        var n = 0; if (r.files) for (var k in r.files) n++;
-        clashoo.toast('备份已导出（' + n + ' 个文件）', { kind: 'ok' });
+        clashoo.toast(_("Backup exported"), { kind: 'ok' });
       }).catch(function (e) {
+        clashoo.toast(_("Export failed: ") + (e.message || e), { kind: 'err' });
+      }).finally(function () {
         done();
-        clashoo.toast('导出失败：' + (e.message || e), { kind: 'err' });
+        if (exportPath)
+          callBackupExportCleanup(exportPath).catch(function () {});
       });
     });
 
-    var fileInput = E('input', {
-      type: 'file', accept: '.json,application/json', style: 'display:none'
-    });
-    fileInput.addEventListener('change', function (ev) {
-      var file = ev.target.files && ev.target.files[0];
-      if (!file) return;
-      if (!confirm('导入将用备份覆盖当前的全部配置与设置，原有的订阅/配置文件会被替换。确定继续吗？')) {
-        fileInput.value = '';
-        return;
-      }
-      var reader = new FileReader();
-      reader.onload = function (e) {
-        callBackupImport(e.target.result).then(function (r) {
-          fileInput.value = '';
-          if (r && r.success)
-            clashoo.toast(r.message || '已还原备份，正在重启服务', { kind: 'ok' });
-          else
-            clashoo.toast('导入失败：' + ((r && r.message) || '未知错误'), { kind: 'err' });
-        }).catch(function (err) {
-          fileInput.value = '';
-          clashoo.toast('导入失败：' + (err.message || err), { kind: 'err' });
-        });
-      };
-      reader.readAsText(file);
-    });
-    var importBtn = E('button', { 'class': 'btn cbi-button cbi-button-neutral' }, '导入还原');
+    var importInput = E('input', { type: 'file', accept: '.tar.gz,.json', style: 'display:none' });
+    var importBtn = E('button', { 'class': 'btn cbi-button cbi-button-neutral' }, _("Import Restore"));
     importBtn.addEventListener('click', function (ev) {
       ev.preventDefault();
-      fileInput.click();
+      importInput.value = '';
+      importInput.click();
+    });
+    importInput.addEventListener('change', function () {
+      var file = importInput.files && importInput.files[0];
+      if (!file)
+        return;
+      var lower = String(file.name || '').toLowerCase();
+      var maxSize = /\.json$/.test(lower) ? 8 * 1024 * 1024
+        : /\.tar\.gz$/.test(lower) ? 32 * 1024 * 1024 : 0;
+      if (!maxSize) {
+        clashoo.toast(_("Import failed: ") + _("Only .tar.gz and legacy .json backup files are supported"), { kind: 'err' });
+        importInput.value = '';
+        return;
+      }
+      if (file.size > maxSize) {
+        clashoo.toast(_("Import failed: ") + _("Backup file is too large"), { kind: 'err' });
+        importInput.value = '';
+        return;
+      }
+      if (!confirm(_("Importing will overwrite all current configuration and settings with the backup. Existing subscriptions/configuration files will be replaced. Continue?"))) {
+        importInput.value = '';
+        return;
+      }
+      importBtn.disabled = true;
+      var uploadPath = '';
+      callBackupImportPrepare().then(function (r) {
+        if (!r || !r.success)
+          throw new Error((r && r.message) || _("Unknown error"));
+        uploadPath = r.path;
+        return uploadBackupChunks(file, uploadPath);
+      }).then(function () {
+        return callBackupImportFile(file.name, uploadPath);
+      }).then(function (r) {
+        if (r && r.success)
+          clashoo.toast(r.message || _("Backup restored, restarting service"), { kind: 'ok' });
+        else
+          throw new Error((r && r.message) || _("Unknown error"));
+      }).catch(function (err) {
+        clashoo.toast(_("Import failed: ") + (err.message || err), { kind: 'err' });
+      }).finally(function () {
+        if (uploadPath)
+          callBackupImportCleanup(uploadPath).catch(function () {});
+        importBtn.disabled = false;
+        importInput.value = '';
+      });
     });
 
-    var resetBtn = E('button', { 'class': 'btn cbi-button cbi-button-negative' }, '还原默认配置');
+    var resetBtn = E('button', { 'class': 'btn cbi-button cbi-button-negative' }, _("Restore Defaults"));
     resetBtn.addEventListener('click', function (ev) {
       ev.preventDefault();
-      if (!confirm('将把 clashoo 的设置恢复为出厂默认值（订阅与配置文件保留）。确定继续吗？'))
+      if (!confirm(_("Restore Clashoo settings to factory defaults (subscriptions and configuration files are kept). Continue?")))
         return;
       resetBtn.disabled = true;
       var orig = resetBtn.textContent;
-      resetBtn.textContent = '还原中…';
+      resetBtn.textContent = _("Restoring…");
       var done = function () { resetBtn.disabled = false; resetBtn.textContent = orig; };
       callBackupReset().then(function (r) {
         done();
         if (r && r.success)
-          clashoo.toast(r.message || '已还原出厂默认设置', { kind: 'ok' });
+          clashoo.toast(r.message || _("Factory defaults restored"), { kind: 'ok' });
         else
-          clashoo.toast('还原失败：' + ((r && r.message) || '未知错误'), { kind: 'err' });
+          clashoo.toast(_("Restore failed: ") + ((r && r.message) || _("Unknown error")), { kind: 'err' });
       }).catch(function (e) {
         done();
-        clashoo.toast('还原失败：' + (e.message || e), { kind: 'err' });
+        clashoo.toast(_("Restore failed: ") + (e.message || e), { kind: 'err' });
       });
     });
 
@@ -572,12 +726,16 @@ return view.extend({
       E('div', { 'class': 'cl-component-card' }, [
         E('div', { 'class': 'cl-component-head' }, [
           E('div', {}, [
-            E('h4', {}, '备份与还原'),
-            E('div', { 'class': 'cl-component-sub' },
-              '折腾内核或配置前先导出一份，改坏了能一键导入还原。仅含配置与设置，不含内核。')
+            E('h4', {}, _("Backup and Restore")),
+            E('div', { 'class': 'cl-component-sub' }, [
+              _("Export a backup before changing cores or configuration, so it can be restored if needed. Includes configuration and settings only, not cores."),
+              E('br'),
+              E('strong', {}, _("Backup files contain subscription and node credentials. Store them securely."))
+            ])
           ])
         ]),
-        E('div', { 'class': 'cl-backup-actions' }, [exportBtn, importBtn, resetBtn, fileInput])
+        importInput,
+        E('div', { 'class': 'cl-backup-actions' }, [exportBtn, importBtn, resetBtn])
       ])
     ]));
   },
@@ -625,7 +783,7 @@ return view.extend({
     if (comp.kind === 'data') return false;
     var variant = this._compVariantOf(comp);
     var inst = this._compInstalledVersion(comp, variant);
-    if (!inst || inst === '未安装' || inst === '未知') return false;
+    if (!inst || inst === _("Not installed") || inst === _("Unknown")) return false;
     var latest = latestMap[this._compLatestKey(comp, variant)];
     if (!latest) return false;
     return this._compNorm(latest) !== this._compNorm(inst);
@@ -633,13 +791,13 @@ return view.extend({
 
   _componentStatusText: function (comp, globalRunning) {
     if (comp.status === 'running')
-      return comp.message || '更新中';
+      return comp.message || _("Updating");
     if (comp.status === 'success')
-      return comp.message || '已完成';
+      return comp.message || _("Completed");
     if (comp.status === 'failed')
-      return comp.message || '失败';
+      return comp.message || _("Failed");
     if (globalRunning)
-      return '等待当前任务完成';
+      return _("Wait for the current task to complete");
     return '';
   },
 
@@ -647,20 +805,22 @@ return view.extend({
   _renderComponentArchRow: function (arch) {
     var self = this;
     arch = arch || {};
-    var sys = arch.system || '未知';
+    var sys = arch.system || _("Unknown");
     var detected = this._detectMihomoArch(this._compCpuArch || sys) || '';
-    var cur = arch.download_core || detected || 'amd64-compatible';
+    var cur = arch.download_core || detected || '';
     var archList = ['amd64-compatible', 'amd64-v1', 'amd64-v2', 'amd64-v3', 'arm64', 'armv7', 'armv6', 'armv5', '386', 'mips', 'mipsle', 'mips64', 'mips64le'];
-    var sel = E('select', { 'class': 'cl-component-arch-sel' },
-      archList.map(function (a) {
-        return E('option', { value: a, selected: a === cur ? '' : null }, a);
-      }));
+    var opts = archList.map(function (a) {
+      return E('option', { value: a, selected: a === cur ? '' : null }, a);
+    });
+    if (!cur)
+      opts.unshift(E('option', { value: '', selected: '' }, _("Not detected, please select")));
+    var sel = E('select', { 'class': 'cl-component-arch-sel' }, opts);
     sel.addEventListener('change', function () {
       uci.set('clashoo', 'config', 'download_core', sel.value);
       uci.save()
         .then(function () { return clashoo.commitConfig(); })
         .then(function () { return clearClashooDirty(); })
-        .then(function () { clashoo.toast('处理器架构已设为 ' + sel.value, { kind: 'info' }); })
+        .then(function () { clashoo.toast(_("CPU architecture set to ") + sel.value, { kind: 'info' }); })
         .catch(function () {});
       /* re-render row: show hint when mismatched */
       if (self._compArchWrap)
@@ -668,13 +828,15 @@ return view.extend({
           [self._renderComponentArchRow({ system: sys, download_core: sel.value })]);
     });
     var row = [
-      E('span', { 'class': 'cl-component-arch-label' }, '处理器架构'),
-      E('span', { 'class': 'cl-component-arch-auto' }, '自动识别'),
+      E('span', { 'class': 'cl-component-arch-label' }, _("CPU Architecture")),
+      E('span', { 'class': 'cl-component-arch-auto' }, _("Auto-detected")),
       sel
     ];
     /* no hint when auto-detected matches; only show when manual choice differs */
     if (detected && cur !== detected)
-      row.push(E('span', { 'class': 'cl-component-arch-hint' }, '推荐 ' + detected + '（按设备自动检测）'));
+      row.push(E('span', { 'class': 'cl-component-arch-hint' }, _("Recommended ") + detected + _(" (auto-detected by device)")));
+    else if (!detected && !cur)
+      row.push(E('span', { 'class': 'cl-component-arch-hint' }, _("Could not detect the device architecture; select it manually before updating the core.")));
     return E('div', { 'class': 'cl-component-arch-row' }, row);
   },
 
@@ -701,16 +863,16 @@ return view.extend({
         });
         return b;
       };
-      variantBox = E('div', { 'class': 'cl-comp-var-box' }, [mkV('stable', '稳定版'), mkV('alpha', 'Alpha')]);
-      inst = this._compInstalledVersion(comp, variant) || '未安装';
+      variantBox = E('div', { 'class': 'cl-comp-var-box' }, [mkV('stable', _("Stable")), mkV('alpha', 'Alpha')]);
+      inst = this._compInstalledVersion(comp, variant) || _("Not installed");
     }
     var latest = latestMap[this._compLatestKey(comp, variant || this._compVariantOf(comp))];
     if (!statusText && latest)
-      statusText = '远端：' + latest;
+      statusText = _("Remote: %s").replace('%s', latest);
 
     /* 绿色「可更新」徽标：最新版与已装不一致时显示 */
     var badge = this._compUpdatable(comp, latestMap)
-      ? E('span', { 'class': 'cl-comp-updatable' }, '可更新')
+      ? E('span', { 'class': 'cl-comp-updatable' }, _("Update available"))
       : null;
 
     var btn = E('button', {
@@ -719,19 +881,19 @@ return view.extend({
       click: function (ev) {
         ev.preventDefault();
         btn.disabled = true;
-        btn.textContent = '提交中';
+        btn.textContent = _("Submitting");
         if (self._compLogEl) self._compLogEl.style.display = '';
         clashoo.componentUpdate(comp.id, variant).then(function (res) {
           if (res && res.success)
-            clashoo.toast('组件更新任务已提交', { kind: 'info' });
+            clashoo.toast(_("Component update task submitted"), { kind: 'info' });
           else
-            clashoo.toast((res && res.message) || '组件更新任务提交失败', { kind: 'error' });
+            clashoo.toast((res && res.message) || _("Failed to submit component update task"), { kind: 'error' });
           setTimeout(function () { self._refreshComponentUpdatePanel(listEl, logEl, false); }, 700);
         });
       }
-    }, comp.status === 'running' ? '更新中' : '更新');
+    }, comp.status === 'running' ? _("Updating") : _("Update"));
 
-    var verChildren = [E('span', {}, '当前：' + (inst || '未知') + ' ')];
+    var verChildren = [E('span', {}, _("Current: %s").replace('%s', inst || _("Unknown")) + ' ')];
     if (badge) verChildren.push(badge);
     var verBlock = [E('div', {}, verChildren)];
     if (variantBox) verBlock.push(variantBox);
@@ -772,7 +934,7 @@ return view.extend({
           self._replaceChildren(self._compAdvListEl, advComps.map(render));
       };
       paint();
-      logEl.textContent = data.log || data.last_log || '暂无组件更新日志';
+      logEl.textContent = data.log || data.last_log || _("No component update logs yet");
 
       if (data.running) {
         /* 有任务运行：展开日志，取消收起计时 */
@@ -801,16 +963,16 @@ return view.extend({
             }, 0);
             if (self._compRefreshBtn) {
               self._compRefreshBtn.disabled = false;
-              self._compRefreshBtn.textContent = '检查更新';
+              self._compRefreshBtn.textContent = _("Check Updates");
             }
-            clashoo.toast(n > 0 ? (n + ' 项可更新') : '所有组件已是最新',
+            clashoo.toast(n > 0 ? _("%d updates available").replace('%d', String(n)) : _("All components are up to date"),
               { kind: n > 0 ? 'info' : 'success' });
           }).catch(function () {
             if (self._compRefreshBtn) {
               self._compRefreshBtn.disabled = false;
-              self._compRefreshBtn.textContent = '检查更新';
+              self._compRefreshBtn.textContent = _("Check Updates");
             }
-            clashoo.toast('检查更新失败，请检查网络', { kind: 'error' });
+            clashoo.toast(_("Failed to check updates, please check the network"), { kind: 'error' });
           });
         }
       }
@@ -828,13 +990,13 @@ return view.extend({
 	);
 	var selectedCoreChoice = originalCoreChoice;
 
-    s = m.section(form.NamedSection, 'config', 'clashoo', '后端核心');
+    s = m.section(form.NamedSection, 'config', 'clashoo', _("Backend Core"));
     s.addremove = false;
-    o = s.option(form.ListValue, '_core_choice', '核心类型');
-	o.value('mihomo-stable', 'mihomo 稳定版');
+    o = s.option(form.ListValue, '_core_choice', _("Core Type"));
+	o.value('mihomo-stable', _("mihomo Stable"));
 	o.value('mihomo-alpha', 'mihomo Alpha');
 	o.value('smart', 'Smart');
-	o.value('singbox-stable', 'sing-box 稳定版');
+	o.value('singbox-stable', _("sing-box Stable"));
 	o.value('singbox-alpha', 'sing-box Alpha');
 	o.cfgvalue = function () { return originalCoreChoice; };
 	o.write = function (sectionId, value) { selectedCoreChoice = value; };
@@ -842,20 +1004,20 @@ return view.extend({
     o.description = '';
 	var coreChoiceOption = o;
 
-    s = m.section(form.NamedSection, 'config', 'clashoo', '管理面板配置');
+    s = m.section(form.NamedSection, 'config', 'clashoo', _("Dashboard Settings"));
     s.addremove = false;
-    o = s.option(form.Value, 'dash_port', '面板端口');
+    o = s.option(form.Value, 'dash_port', _("Dashboard Port"));
     o.placeholder = '9090';
-    o = s.option(form.Value, 'dash_pass', '访问密钥');
+    o = s.option(form.Value, 'dash_pass', _("Access Secret"));
     o.placeholder = 'clashoo';
-    o = s.option(form.ListValue, 'dashboard_panel', '面板 UI');
+    o = s.option(form.ListValue, 'dashboard_panel', _("Panel UI"));
     ['metacubexd','yacd','zashboard','razord'].forEach(function(p){ o.value(p,p); });
 
-    s = m.section(form.NamedSection, 'config', 'clashoo', '内核下载');
+    s = m.section(form.NamedSection, 'config', 'clashoo', _("Core Download"));
     s.addremove = false;
-    o = s.option(form.Value, 'core_mirror_prefix', 'GitHub 加速前缀');
+    o = s.option(form.Value, 'core_mirror_prefix', _("GitHub acceleration prefix"));
     o.placeholder = 'https://gh-proxy.com/';
-    o.description = '内核 / 数据组件下载时优先走该前缀（末尾需带斜杠）。留空则使用内置 gh-proxy.com 与 ghfast.top 备选源。';
+    o.description = _("When downloading core/data components, this prefix will be used first (a slash is required at the end). Leave blank to use the built-in gh-proxy.com and ghfast.top alternative sources.");
     o.rmempty = true;
 
     m.render().then(function (node) {
@@ -879,7 +1041,7 @@ return view.extend({
 		  })
 		  .then(function (res) {
 			if (!res || res.success === false)
-			  throw new Error((res && res.message) || '内核配置保存失败');
+			  throw new Error((res && res.message) || _("Failed to save core configuration"));
 			if (applyNow && res.restarting)
 			  return waitForCoreTarget(target).then(function () { return res; });
 			return res;
@@ -890,11 +1052,11 @@ return view.extend({
 		  .then(function (res) {
 			var msg;
 			if (!applyNow)
-			  msg = changed ? '内核类型已保存，下次启动或重启后生效' : '配置已保存';
+			  msg = changed ? _("Core type saved, takes effect on next start or restart") : _("Configuration saved");
 			else if (res.restarting)
-			  msg = '配置已保存，已切换并启动所选内核';
+			  msg = _("Configuration saved, switched and started selected core");
 			else
-			  msg = '配置已保存，服务保持停止';
+			  msg = _("Configuration saved, service remains stopped");
 			ui.addNotification(null, E('p', msg));
 			window.setTimeout(function () { location.reload(); }, 300);
 		  });
@@ -903,12 +1065,12 @@ return view.extend({
       container.appendChild(E('div', { 'class': 'cl-save-bar' }, [
         E('button', { 'class': 'cbi-button', click: function () {
 		  saveKernelForm(false)
-            .catch(function (e) { ui.addNotification(null, E('p', '保存失败: ' + (e.message || e))); });
-        }}, '保存配置'),
+            .catch(function (e) { ui.addNotification(null, E('p', _("Save failed: ") + (e.message || e))); });
+        }}, _("Save Configuration")),
         E('button', { 'class': 'btn cbi-button-action', click: function () {
 		  saveKernelForm(true)
-            .catch(function (e) { ui.addNotification(null, E('p', '操作失败: ' + (e.message || e))); });
-        }}, '应用配置')
+            .catch(function (e) { ui.addNotification(null, E('p', _("Operation failed: ") + (e.message || e))); });
+        }}, _("Apply Configuration"))
       ]));
     });
   },
@@ -917,66 +1079,103 @@ return view.extend({
     var m = new form.Map('clashoo', '', '');
     var s, o;
 
-    s = m.section(form.NamedSection, 'config', 'clashoo', '绕过规则');
+    s = m.section(form.NamedSection, 'config', 'clashoo', _("Bypass Rules"));
     s.addremove = false;
-    o = s.option(form.Flag, 'bypass_china',  '大陆 IP 绕过');
-    o = s.option(form.ListValue, 'bypass_port_mode', '绕过端口');
-    o.value('all', '所有端口');
-    o.value('common', '常用端口');
-    o.value('custom', '自定义');
+    o = s.option(form.Flag, 'bypass_china', _("Bypass China IPv4"));
+    o.default = '0';
+    o.rmempty = false;
+
+    o = s.option(form.Flag, 'bypass_china_ipv6', _("Bypass China IPv6"));
+    o.default = '0';
+    o.rmempty = false;
+    o.cfgvalue = function (section_id) {
+      var value = uci.get('clashoo', section_id, 'bypass_china_ipv6');
+      return (value != null) ? value : uci.get('clashoo', section_id, 'bypass_china');
+    };
+
+    o = s.option(form.ListValue, 'bypass_port_mode', _("Bypass Ports"));
+    o.value('all', _("All Ports"));
+    o.value('common', _("Common Ports"));
+    o.value('custom', _("Custom"));
     o.default = 'all';
 
-    o = s.option(form.Value, 'bypass_port_custom', '自定义端口');
+    o = s.option(form.Value, 'bypass_port_custom', _("Custom Ports"));
     o.depends('bypass_port_mode', 'custom');
     o.placeholder = '22,53,80,443,8080,8443';
     o.datatype = 'string';
     o.rmempty = true;
 
-    o = s.option(form.Flag, 'sniffer_streaming', '嗅探功能（流媒体兼容）');
+    o = s.option(form.Flag, 'sniffer_streaming', _("Sniffer (streaming compatibility)"));
     o.default = '1';
     o.rmempty = false;
-    o.description = '启用后自动注入 sniffer 配置，提升流媒体域名识别与分流稳定性。';
+    o.description = _("When enabled, sniffer configuration is injected automatically to improve streaming domain detection and routing stability.");
 
-    s = m.section(form.NamedSection, 'config', 'clashoo', '局域网控制');
-    s.addremove = false;
-    o = s.option(form.ListValue, 'access_control', '访问控制');
-    o.value('0', '所有设备'); o.value('1', '白名单'); o.value('2', '黑名单');
+    s = m.section(form.TableSection, 'lan_acl', _("Access Control"));
+    s.addremove = true;
+    s.anonymous = true;
+    s.sortable = true;
+    s.description = _("Rules are matched from top to bottom. Unmatched devices use DNS takeover and proxy by default. A rule with IPv4, IPv6 and MAC all empty matches every device.");
 
-    /* Populate host hints for both IP list fields */
     var hints = this._hostHints || {};
-    var hostOptions = [];
-    var seen = {};
+    var hostOptions = [], host6Options = [], macOptions = [];
+    var seen = {}, seen6 = {};
     Object.keys(hints).forEach(function (mac) {
       var h = hints[mac] || {};
       var macU = mac.toUpperCase();
       var addrs = h.ipaddrs || (h.ipv4 ? [h.ipv4] : []);
+      var addrs6 = h.ip6addrs || [];
+      var label = h.name || addrs[0] || addrs6[0] || '';
       addrs.forEach(function (ip) {
         if (ip && !seen[ip]) {
           seen[ip] = true;
           hostOptions.push([ip, ip + ' (' + macU + ')']);
         }
       });
+      addrs6.forEach(function (ip) {
+        if (ip && !seen6[ip]) {
+          seen6[ip] = true;
+          host6Options.push([ip, ip + ' (' + macU + ')']);
+        }
+      });
+      macOptions.push([macU, label ? macU + ' (' + label + ')' : macU]);
     });
 
-    o = s.option(form.DynamicList, 'proxy_lan_ips', 'IP白名单');
+    o = s.option(form.Flag, 'enabled', _("Enable"));
+    o.default = '1';
+    o.rmempty = false;
+
+    o = s.option(form.DynamicList, 'ip', _("IPv4"));
     o.placeholder = '192.168.1.100';
-    o.depends('access_control', '1');
+    o.datatype = 'ip4addr';
     hostOptions.forEach(function (kv) { o.value(kv[0], kv[1]); });
 
-    o = s.option(form.DynamicList, 'reject_lan_ips', 'IP黑名单');
-    o.placeholder = '192.168.1.100';
-    o.depends('access_control', '2');
-    hostOptions.forEach(function (kv) { o.value(kv[0], kv[1]); });
+    o = s.option(form.DynamicList, 'ip6', _("IPv6"));
+    o.placeholder = 'fd00::100';
+    o.datatype = 'ip6addr';
+    host6Options.forEach(function (kv) { o.value(kv[0], kv[1]); });
 
-    s = m.section(form.NamedSection, 'config', 'clashoo', '自动化任务');
+    o = s.option(form.DynamicList, 'mac', _("MAC"));
+    o.placeholder = '00:11:22:33:44:55';
+    o.datatype = 'macaddr';
+    macOptions.forEach(function (kv) { o.value(kv[0], kv[1]); });
+
+    o = s.option(form.Flag, 'dns', _("DNS Takeover"));
+    o.default = '1';
+    o.rmempty = false;
+
+    o = s.option(form.Flag, 'proxy', _("Proxy"));
+    o.default = '1';
+    o.rmempty = false;
+
+    s = m.section(form.NamedSection, 'config', 'clashoo', _("Automation Tasks"));
     s.addremove = false;
-    o = s.option(form.Flag,  'auto_update',   '定时更新规则数据');
-    o.description = '规则数据包含：大陆白名单（直连 IP 段）与 GeoIP / GeoSite 地理库';
-    o = s.option(form.Value, 'auto_update_time',   '更新间隔（小时）');
-    o = s.option(form.Flag,  'auto_clear_log',    '定时清理日志');
-    o = s.option(form.Value, 'clear_time','清理间隔（小时）');
-    o = s.option(form.ListValue, 'geoip_source', 'GeoIP 数据源');
-    o.value('3', 'Loyalsoldier'); o.value('5', 'v2fly'); o.value('4', '自定义');
+    o = s.option(form.Flag,  'auto_update',   _("Regularly update rule data"));
+    o.description = _("Rule data includes China allowlist (direct IP ranges) and GeoIP / GeoSite databases");
+    o = s.option(form.Value, 'auto_update_time',   _("Update interval (hours)"));
+    o = s.option(form.Flag,  'auto_clear_log',    _("Scheduled Log Cleanup"));
+    o = s.option(form.Value, 'clear_time',_("Cleanup interval (hours)"));
+    o = s.option(form.ListValue, 'geoip_source', _("GeoIP Source"));
+    o.value('3', 'Loyalsoldier'); o.value('5', 'v2fly'); o.value('4', _("Custom"));
     o.default = '3';
     o = s.option(form.Value, 'geoip_mmdb_url', 'Country.mmdb URL');
     o.depends('geoip_source', '4');
@@ -989,19 +1188,21 @@ return view.extend({
     o.placeholder = 'https://…/geoip.dat';
 
     m.render().then(function (node) {
+      normalizeLanAclLayout(node);
       decorateSystemForm(node);
       container.appendChild(node);
+      watchLanAclLayout(node);
       container.appendChild(E('div', { 'class': 'cl-save-bar' }, [
         E('button', { 'class': 'cbi-button', click: function () {
           m.save().then(function () { return clashoo.commitConfig(); })
             .then(function () { return clearClashooDirty(); })
             .then(function () { location.reload(); })
-            .catch(function (e) { ui.addNotification(null, E('p', '保存失败: ' + (e.message || e))); });
-        }}, '保存配置'),
+            .catch(function (e) { ui.addNotification(null, E('p', _("Save failed: ") + (e.message || e))); });
+        }}, _("Save Configuration")),
         E('button', { 'class': 'btn cbi-button-action', click: function () {
-          saveCommitApplyMaybeReload(m, '配置已保存并热重载服务', '配置已保存，服务未启动')
-            .catch(function (e) { ui.addNotification(null, E('p', '操作失败: ' + (e.message || e))); });
-        }}, '应用配置')
+          saveCommitApplyMaybeReload(m, _("Configuration saved and service hot-reloaded"), _("Configuration saved, service is not running"))
+            .catch(function (e) { ui.addNotification(null, E('p', _("Operation failed: ") + (e.message || e))); });
+        }}, _("Apply Configuration"))
       ]));
     });
   },
@@ -1009,9 +1210,9 @@ return view.extend({
   _buildLogsPanel: function (runLog) {
     var self = this;
     var logTypes = [
-      { id: 'plugin', label: '插件日志', read: clashoo.readLog.bind(clashoo),              clear: clashoo.clearLog.bind(clashoo) },
-      { id: 'core',   label: '核心日志', read: clashoo.readCoreLog.bind(clashoo),           clear: clashoo.clearCoreLog.bind(clashoo) },
-      { id: 'update', label: '更新日志', read: clashoo.readUpdateMergedLog.bind(clashoo),   clear: clashoo.clearUpdateMergedLog.bind(clashoo) }
+      { id: 'plugin', label: _("Plugin Log"), read: clashoo.readLog.bind(clashoo),              clear: clashoo.clearLog.bind(clashoo) },
+      { id: 'core',   label: _("Core Log"), read: clashoo.readCoreLog.bind(clashoo),           clear: clashoo.clearCoreLog.bind(clashoo) },
+      { id: 'update', label: _("Update Log"), read: clashoo.readUpdateMergedLog.bind(clashoo),   clear: clashoo.clearUpdateMergedLog.bind(clashoo) }
     ];
     var MAX_LINES = 5000;
 
@@ -1087,7 +1288,7 @@ return view.extend({
 
     var logTabEls = {};
     var logArea = E('div', { 'class': 'cl-log-area', id: 'cl-log-area' });
-    logArea.innerHTML = runLog ? renderLines(runLog) : '<em>（空）</em>';
+    logArea.innerHTML = runLog ? renderLines(runLog) : _("<em>(empty)</em>");
 
     var clearBtn = null;
 
@@ -1099,7 +1300,7 @@ return view.extend({
       self._logTab = logType.id;
       syncClearButton();
       return logType.read().then(function (content) {
-        logArea.innerHTML = (content && content.trim()) ? renderLines(content) : '<em>（空）</em>';
+        logArea.innerHTML = (content && content.trim()) ? renderLines(content) : _("<em>(empty)</em>");
         applyFilter();
         if (state.autoScroll) logArea.scrollTop = logArea.scrollHeight;
       });
@@ -1135,7 +1336,7 @@ return view.extend({
     cbPause.addEventListener('change', function () { state.paused = cbPause.checked; });
 
     var selFilter = E('select', { 'class': 'cbi-button' }, [
-      E('option', { value: '' }, '全部'),
+      E('option', { value: '' }, _("All")),
       E('option', { value: 'info' }, 'INFO'),
       E('option', { value: 'warn' }, 'WARN'),
       E('option', { value: 'error' }, 'ERROR'),
@@ -1146,10 +1347,10 @@ return view.extend({
       applyFilter();
     });
 
-    var btnClearView = E('button', { 'class': 'cbi-button' }, '清空显示');
+    var btnClearView = E('button', { 'class': 'cbi-button' }, _("Clear View"));
     btnClearView.addEventListener('click', function () { logArea.innerHTML = ''; });
 
-    var btnDownload = E('button', { 'class': 'cbi-button' }, '下载');
+    var btnDownload = E('button', { 'class': 'cbi-button' }, _("Download"));
     btnDownload.addEventListener('click', function () {
       var blob = new Blob([logArea.textContent || ''], { type: 'text/plain' });
       var url = URL.createObjectURL(blob);
@@ -1160,18 +1361,18 @@ return view.extend({
       URL.revokeObjectURL(url);
     });
 
-    clearBtn = E('button', { 'class': 'cbi-button' }, '清空文件');
+    clearBtn = E('button', { 'class': 'cbi-button' }, _("Clear File"));
     clearBtn.addEventListener('click', function () {
       var ct = currentType();
       if (!ct.clear) return;
-      if (!confirm('确定要清空当前日志文件吗？此操作不可恢复。')) return;
+      if (!confirm(_("Clear the current log file? This cannot be undone."))) return;
       ct.clear().then(function () { logArea.innerHTML = ''; });
     });
     syncClearButton();
 
     var toolbar = E('div', { 'class': 'cl-log-toolbar' }, [
-      E('label', {}, [cbAuto, '自动滚动']),
-      E('label', {}, [cbPause, '暂停']),
+      E('label', {}, [cbAuto, _("Auto Scroll")]),
+      E('label', {}, [cbPause, _("Pause")]),
       selFilter,
       btnClearView,
       btnDownload,
@@ -1179,7 +1380,7 @@ return view.extend({
     ]);
 
     return E('div', { 'class': 'cl-section cl-card cl-log-card' }, [
-      E('h4', {}, '日志'),
+      E('h4', {}, _("Log")),
       logTabBar,
       toolbar,
       logArea
@@ -1200,7 +1401,7 @@ return view.extend({
     };
     var readFn = logFns[this._logTab] || logFns.plugin;
     return readFn().then(function (content) {
-      if (!content || !content.trim()) { el.innerHTML = '<em>（空）</em>'; return; }
+      if (!content || !content.trim()) { el.innerHTML = _("<em>(empty)</em>"); return; }
       var html = '';
       var lines = content.split('\n').filter(function(l) { return l; });
       for (var i = 0; i < lines.length; i++) {

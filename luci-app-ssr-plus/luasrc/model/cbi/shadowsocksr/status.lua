@@ -122,7 +122,7 @@ if global_type == "socks5" and Process_list:find("ipt2socks") then
 	end
 end
 
-if (global_type == "clash" or global_type == "v2ray" or global_type == "tuic" or global_type == "ss")
+if (global_type == "clash" or global_type == "v2ray" or global_type == "tuic" or global_type == "ss" or global_type == "ss-rust")
 	and Process_list:find("ssr%-retcp") then
 	redir_run = 1
 	reudp_run = 1
@@ -131,7 +131,7 @@ if (global_type == "clash" or global_type == "v2ray" or global_type == "tuic" or
 	end
 end
 
-if (global_type == "clash" or global_type == "v2ray" or global_type == "tuic" or global_type == "ss")
+if (global_type == "clash" or global_type == "v2ray" or global_type == "tuic" or global_type == "ss" or global_type == "ss-rust")
 	and Process_list:find("mihomo")
 	and (Process_list:find("/clash%-") or Process_list:find("/v2ray%-") or Process_list:find("/tuic%-") or Process_list:find("/ss%-")) then
 	redir_run = 1
@@ -265,6 +265,11 @@ s = m:field(DummyValue, "ip_data", translate("China IP Data"))
 s.rawhtml = true
 s.template = "shadowsocksr/refresh"
 s.value = ip_count .. " " .. translate("Records")
+
+s = m:field(DummyValue, "ip6_data", translate("China IPv6 Data"))
+s.rawhtml = true
+s.template = "shadowsocksr/refresh"
+s.value = (tonumber(luci.sys.exec("wc -l < /etc/ssrplus/china6_ssr.txt 2>/dev/null")) or 0) .. " " .. translate("Records")
 
 if uci:get_first("shadowsocksr", 'global', 'apple_optimization', '0') ~= '0' then
 	s = m:field(DummyValue, "apple_data", translate("Apple Domains Data"))

@@ -5,13 +5,13 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=daed
-PKG_VERSION:=2026.06.14
-PKG_RELEASE:=5
+PKG_VERSION:=2026.10.30
+PKG_RELEASE:=1
 
-PKG_SOURCE:=daed-src-2026.06.14-4e215048068a.tar.gz
+PKG_SOURCE:=daed-src-2026.10.30-1850c01d032c.tar.gz
 PKG_SOURCE_URL:=https://github.com/kenzok8/openwrt-daede/releases/download/daed-src
 PKG_SOURCE_SUBDIR:=$(PKG_NAME)-$(PKG_VERSION)
-PKG_HASH:=eeba8db775d248ce06f34adda7a392548c78a1d9d11d9a162e0ab41d5cc216d6
+PKG_HASH:=1850c01d032cebc3d29bd104c7c654ab422ed1199c5207cd952a0d9340e9289b
 
 PKG_LICENSE:=AGPL-3.0-only MIT
 PKG_LICENSE_FILES:=LICENSE wing/LICENSE
@@ -40,7 +40,7 @@ GO_PKG_LDFLAGS:= \
 GO_PKG_LDFLAGS_X:= \
 	$(GO_PKG)/db.AppName=$(PKG_NAME) \
 	$(GO_PKG)/db.AppVersion=$(PKG_VERSION)
-GO_PKG_TAGS:=embedallowed,trace
+GO_PKG_TAGS:=embedallowed,trace,timetzdata
 
 include $(INCLUDE_DIR)/package.mk
 include $(INCLUDE_DIR)/bpf.mk
@@ -132,12 +132,19 @@ define Package/daed/install
 	$(call GoPackage/Package/Install/Bin,$(PKG_INSTALL_DIR))
 	$(INSTALL_DIR) $(1)/usr/bin
 	$(INSTALL_BIN) $(PKG_INSTALL_DIR)/usr/bin/dae-wing $(1)/usr/bin/daed
+	$(INSTALL_BIN) $(CURDIR)/files/daed-guard $(1)/usr/bin/daed-guard
+
+	$(INSTALL_DIR) $(1)/usr/share/daed
+	$(INSTALL_DATA) $(CURDIR)/files/daed-cleanup.sh $(1)/usr/share/daed/cleanup.sh
 
 	$(INSTALL_DIR) $(1)/etc/config
 	$(INSTALL_CONF) $(CURDIR)/files/daed.config $(1)/etc/config/daed
 
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_BIN) $(CURDIR)/files/daed.init $(1)/etc/init.d/daed
+
+	$(INSTALL_DIR) $(1)/lib/upgrade/keep.d
+	$(INSTALL_DATA) $(CURDIR)/files/daed.keep $(1)/lib/upgrade/keep.d/daed
 endef
 
 $(eval $(call GoBinPackage,daed))

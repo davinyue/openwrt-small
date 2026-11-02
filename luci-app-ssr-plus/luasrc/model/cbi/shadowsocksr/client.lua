@@ -48,7 +48,7 @@ local function clash_display_name(s)
 	return "[CLASH]"
 end
 
-m = Map("shadowsocksr", translate("ShadowSocksR Plus+ Settings"), translate("<h3>Support SS/SSR/V2RAY/XRAY/TROJAN/TUIC/HYSTERIA2/NAIVEPROXY/SOCKS5/CLASH etc.</h3>"))
+m = Map("shadowsocksr", translate("ShadowSocksR Plus+ Settings"), translate("<h3>Support SS/SSR/V2RAY/XRAY/TROJAN/TUIC/HYSTERIA2/ANYTLS/NAIVEPROXY/SOCKS5/CLASH etc.</h3>"))
 m:section(SimpleSection).template = "shadowsocksr/status"
 
 local server_table = {}
@@ -108,6 +108,17 @@ o:value("router", translate("IP Route Mode"))
 o:value("all", translate("Global Mode"))
 o.default = gfw
 
+o = s:option(Flag, "ipv6_support", translate("IPv6 Traffic Proxy"))
+o.description = translate("Proxy IPv6 traffic using the selected running mode (requires nftables). Allow AAAA replies while enabled and restore the DNS filter when stopped.")
+o.default = "0"
+o.rmempty = false
+function o.validate(self, value, section)
+	if value == "1" and not is_finded("nft") then
+		return nil, translate("IPv6 proxy requires nftables.")
+	end
+	return value
+end
+
 o = s:option(ListValue, "dports", translate("Proxy Ports"))
 o:value("1", translate("All Ports"))
 o:value("2", translate("Only Common Ports"))
@@ -161,11 +172,15 @@ o.description = translate("Custom DNS Server format as tcp://IP:PORT or tls://DO
 o.default = "tcp://8.8.4.4:53,tcp://8.8.8.8:53"
 
 o = s:option(Flag, "filter_aaaa", translate("Disable IPv6 for Overseas FQDN"))
-o:depends("pdnsd_enable", "1")
-o:depends("pdnsd_enable", "4")
-o:depends("pdnsd_enable", "7")
+o:depends({pdnsd_enable = "1", ipv6_support = false})
+o:depends({pdnsd_enable = "4", ipv6_support = false})
+o:depends({pdnsd_enable = "7", ipv6_support = false})
 o.rmempty = false
 o.default = "1"
+
+-- Dependency hiding must not delete the saved IPv4-mode preference.
+function o.remove(self, section)
+end
 
 if is_finded("chinadns-ng") then
 	o = s:option(Value, "chinadns_ng_tunnel_forward", translate("Anti-pollution DNS Server"))
@@ -183,10 +198,10 @@ if is_finded("chinadns-ng") then
 	o:depends("pdnsd_enable", "6")
 	o.default = "8.8.4.4:53"
 	o.description = translate(
-    	"<ul>" ..
-    	"<li>" .. translate("Custom DNS Server format as IP:PORT (default: 8.8.4.4:53)") .. "</li>" .. 
-    	"<li>" .. translate("Muitiple DNS server can saperate with ','") .. "</li>" ..
-    	"</ul>"
+		"<ul>" ..
+		"<li>" .. translate("Custom DNS Server format as IP:PORT (default: 8.8.4.4:53)") .. "</li>" .. 
+		"<li>" .. translate("Muitiple DNS server can saperate with ','") .. "</li>" ..
+		"</ul>"
 	)
 
 	o = s:option(ListValue, "chinadns_ng_proto", translate("ChinaDNS-NG query protocol"))
@@ -209,11 +224,31 @@ if is_finded("chinadns-ng") then
 	o:value("1.2.4.8:53", translate("CNNIC SDNS (1.2.4.8)"))
 	o:depends({pdnsd_enable = "6", run_mode = "router"})
 	o.default = "wan"
-	o.description = translate("Custom DNS Server format as IP:PORT (default: disabled)")
+	o.description = translate(
+		"<ul>" ..
+		"<li>" .. translate("Custom DNS Server format as IP:PORT (default: disabled)") .. "</li>" .. 
+		"<li>" .. translate("Muitiple DNS server can saperate with ','") .. "</li>" ..
+		"</ul>"
+	)
 	o.validate = function(self, value, section)
 		if (section and value) then
 			if value == "none" or value == "wan" or value == "wan_114" then
 				return value
+			end
+
+			if string.find(value, ",") then
+				local parts = {}
+				for part in string.gmatch(value, "[^,]+") do
+					part = part:gsub("^%s*", ""):gsub("%s*$", "")
+					if not validation.ip4addrport(part) then
+						return nil, translate("Expecting: %s"):format(translate("valid address:port (comma separated)"))
+					end
+					table.insert(parts, part)
+				end
+				if #parts == 0 then
+					return nil, translate("Expecting: %s"):format(translate("valid address:port"))
+				end
+				return table.concat(parts, ",")
 			end
 
 			if validation.ip4addrport(value) then

@@ -123,8 +123,8 @@ msgstr "日志设置"
 msgid "daed Username"
 msgstr "daed 用户名"
 
-msgid "Used by LuCI to update daed subscriptions through GraphQL. It does not change the daed Web login account."
-msgstr "LuCI 通过 GraphQL 更新 daed 订阅时使用；不会修改 daed Web 的登录账号。"
+msgid "Used by LuCI to access daed (subscription updates and import). If daed is not initialized yet, this account is used to create the daed admin."
+msgstr "供 LuCI 访问 daed 使用（订阅更新与导入）。若 daed 尚未初始化，将用此账号创建 daed 管理员。"
 
 msgid "daed Password"
 msgstr "daed 密码"
@@ -314,6 +314,21 @@ msgstr "已是最新"
 msgid "not installed via package manager"
 msgstr "非包管理器安装"
 
+msgid "unsupported package version"
+msgstr "已安装其他版本，无法在此升级"
+
+msgid "package status unavailable"
+msgstr "软件包状态读取失败"
+
+msgid "package index refresh failed"
+msgstr "软件源刷新失败，请检查网络和软件源"
+
+msgid "refreshing package indexes"
+msgstr "正在刷新软件源"
+
+msgid "package not found in configured feeds"
+msgstr "当前软件源中没有此包"
+
 msgid "Unavailable"
 msgstr "不可用"
 
@@ -372,6 +387,9 @@ msgstr "dae 热重载可用"
 msgid "netns daens removed."
 msgstr "netns daens 已清理。"
 
+msgid "in use by daed"
+msgstr "daed 运行中，正在使用"
+
 msgid "exists, may block daed start"
 msgstr "已存在，可能阻碍 daed 启动"
 
@@ -399,6 +417,18 @@ msgstr "清空文件"
 
 msgid "Download"
 msgstr "下载"
+
+msgid "Stop daed"
+msgstr "停止 daed"
+
+msgid "Stop daed now?"
+msgstr "立即停止 daed？"
+
+msgid "daed stopped"
+msgstr "daed 已停止"
+
+msgid "Failed to stop daed: %s"
+msgstr "停止 daed 失败：%s"
 
 # ---- config.js: Subscription Card ----
 msgid "Subscription Management"
@@ -574,6 +604,12 @@ msgstr "兜底 DNS 上游"
 msgid "Resolves everything else."
 msgstr "解析其余域名。"
 
+msgid "DNS response TTL"
+msgstr "DNS 响应 TTL"
+
+msgid "TTL returned to LAN DNS clients. 0 keeps dae default behavior."
+msgstr "返回给局域网 DNS 客户端的 TTL。0 表示保持 dae 默认行为。"
+
 msgid "Apply failed: %s"
 msgstr "应用失败：%s"
 
@@ -622,6 +658,9 @@ msgstr "更新失败：%s"
 msgid "Subscriptions updated (dae reloaded)"
 msgstr "订阅已更新（dae 已重载）"
 
+msgid "Subscriptions updated and applied"
+msgstr "订阅已更新并应用"
+
 msgid "Section"
 msgstr "区块"
 
@@ -641,6 +680,12 @@ msgstr "代理流量"
 
 msgid "Logging"
 msgstr "日志"
+
+msgid "Log level"
+msgstr "日志级别"
+
+msgid "Debug and trace show per-connection routing details, but increase CPU usage and log volume. Enable them only while troubleshooting."
+msgstr "Debug 和 Trace 会显示逐连接的分流详情，但会增加 CPU 占用和日志量，仅建议排障时启用。"
 
 msgid "Save manual config"
 msgstr "保存手动配置"
@@ -775,6 +820,18 @@ msgstr "登录 daed"
 
 msgid "The password is not saved. Sign-in is remembered in this browser for up to 30 days."
 msgstr "不会保存密码。此浏览器将在 30 天内记住登录状态。"
+
+msgid "Initialize daed"
+msgstr "初始化 daed"
+
+msgid "Initialize and import"
+msgstr "初始化并导入"
+
+msgid "daed has not been initialized yet. The account below will be created as the daed admin (password needs at least 6 characters with both letters and numbers), then used to import."
+msgstr "daed 尚未初始化。下方账号将被创建为 daed 管理员（密码至少 6 位，且需同时包含字母和数字），随后用于导入。"
+
+msgid "daed is not initialized yet. Open the daed web panel (port 2023) to create an admin account, then import again."
+msgstr "daed 尚未初始化。请先打开 daed 网页面板（2023 端口）创建管理员账号，再重新导入。"
 
 msgid "3. Import Subscription"
 msgstr "3. 导入订阅"
@@ -971,6 +1028,12 @@ msgstr "正在导入节点组…"
 msgid "Node group imported: added %d, reused %d, failed %d"
 msgstr "节点组导入完成：新增 %d，复用 %d，失败 %d"
 
+msgid "Completed with warning: %s"
+msgstr "已完成，但有警告：%s"
+
+msgid "Managed subscription no longer exists in daed"
+msgstr "daed 中已不存在该托管订阅"
+
 msgid "Node group import failed: %s"
 msgstr "节点组导入失败：%s"
 
@@ -992,6 +1055,12 @@ msgstr "导出"
 msgid "Import"
 msgstr "导入"
 
+msgid "Restore Defaults"
+msgstr "恢复默认"
+
+msgid "Backups contain account and subscription credentials. Store them securely."
+msgstr "备份中包含账号和订阅凭据，请妥善保管。"
+
 msgid "Back up / restore the whole daede config (kernels excluded)"
 msgstr "备份 / 还原整个 daede 配置（不含内核）"
 
@@ -1006,6 +1075,9 @@ msgstr "自定义"
 
 msgid "Auto-update"
 msgstr "自动更新"
+
+msgid "Disabled"
+msgstr "关闭"
 
 msgid "Daily"
 msgstr "每天"
@@ -1050,3 +1122,75 @@ msgid ""
 "Uplink. auto = detect by default route; on legacy swconfig or multi-WAN set "
 "it, e.g. eth0.2."
 msgstr "上行 WAN 接口。auto 按默认路由自动检测；老式 swconfig 交换机或多 WAN 时手动指定，例如 eth0.2。"
+
+msgid "Export Backup"
+msgstr "导出备份"
+
+msgid "Import Backup"
+msgstr "导入还原"
+
+msgid "Restore All Defaults"
+msgstr "恢复全部默认配置"
+
+msgid "Working…"
+msgstr "正在处理…"
+
+msgid "Apply or discard pending daede changes first."
+msgstr "请先应用或放弃尚未保存的 daede 修改。"
+
+msgid "Configuration operation failed."
+msgstr "配置操作失败。"
+
+msgid "Configuration operation failed. See the log below."
+msgstr "配置操作失败，请查看下方日志。"
+
+msgid "Operation is still running. Check the log before retrying."
+msgstr "操作仍在进行，请检查日志后再重试。"
+
+msgid "Configuration restored"
+msgstr "配置已恢复"
+
+msgid "Reload Page"
+msgstr "刷新页面"
+
+msgid "Export briefly stops running dae/daed services to back up the database safely, then resumes them. Continue?"
+msgstr "导出时会短暂停止正在运行的 dae／daed，以保证数据库备份完整，完成后恢复运行。是否继续？"
+
+msgid "Backup exceeds the 180 KiB limit. Use System Backup for larger files."
+msgstr "备份文件超过 180 KiB 限制，请使用系统备份功能处理较大的文件。"
+
+msgid "Import replaces daede settings, nodes, subscriptions and dashboard data. Services stop first; the saved active backend starts only if enabled in the backup. Continue?"
+msgstr "导入将覆盖 daede 设置、节点、订阅和面板数据。服务会先停止，仅在备份中为启用状态时启动对应后端。是否继续？"
+
+msgid "Unable to read backup file."
+msgstr "无法读取备份文件。"
+
+msgid "Backup restored. The active backend follows the saved enabled setting."
+msgstr "备份已还原，当前后端按备份中的启用状态运行。"
+
+msgid "Restore ALL daede defaults? This clears dae/daed settings, nodes, subscriptions and daed dashboard accounts/data. Export a backup first if needed. Both backends will remain disabled. Installed programs and GeoData are kept."
+msgstr "确定恢复 daede 全部默认配置？此操作会清空 dae／daed 设置、节点、订阅以及 daed 面板账号和数据。需要保留时请先导出备份。完成后两个后端均保持关闭，已安装程序和 GeoData 数据文件保留。"
+
+msgid "All defaults restored. Both backends are disabled. Configure your nodes and routing before starting manually."
+msgstr "已恢复全部默认配置，两个后端均已关闭。请重新配置节点和路由后手动开启。"
+
+msgid "Back up settings, nodes, subscriptions and dashboard data. Backups contain credentials; store them securely. Kernels and GeoData are excluded."
+msgstr "备份包括设置、节点、订阅和面板数据，不包括内核和 GeoData。备份中含有账号和订阅凭据，请妥善保管。"
+
+msgid "Auto-scroll: On"
+msgstr "自动滚动：开启"
+
+msgid "Auto-scroll: Off"
+msgstr "自动滚动：关闭"
+
+msgid "Resume"
+msgstr "继续"
+
+msgid "Paused"
+msgstr "已暂停"
+
+msgid "Confirm configuration operation"
+msgstr "确认配置操作"
+
+msgid "Continue"
+msgstr "继续"

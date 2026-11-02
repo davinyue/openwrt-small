@@ -1,5 +1,6 @@
 <%
-local api = require "luci.passwall.api"
+local map = self.map
+local api = map.api
 -%>
 
 <style>
@@ -98,7 +99,7 @@ https://github.com/pure-css/pure/blob/master/LICENSE.md
 					</div>
 				</div>
 				<div class="pure-u-2-3">
-					<h4 id="status_tcp_node">TCP<br /><span class="red"><%:NOT RUNNING%></span></h4>
+					<h4 id="status_tcp">TCP<br /><span class="red"><%:NOT RUNNING%></span></h4>
 				</div>
 			</div>
 		</div>
@@ -110,7 +111,7 @@ https://github.com/pure-css/pure/blob/master/LICENSE.md
 					</div>
 				</div>
 				<div class="pure-u-2-3">
-					<h4 id="status_udp_node">UDP<br /><span class="red"><%:NOT RUNNING%></span></h4>
+					<h4 id="status_udp">UDP<br /><span class="red"><%:NOT RUNNING%></span></h4>
 				</div>
 			</div>
 		</div>
@@ -138,7 +139,7 @@ https://github.com/pure-css/pure/blob/master/LICENSE.md
 				</div>
 			</div>
 		</div>
-		<div class="pure-u-1-4 check" onclick="check_connect('aliyun', 'https://www.aliyun.com')" title="<%:TLS handshake test, latency for reference only%>">
+		<div class="pure-u-1-4 check" onclick="check_connect('aliyun', 'https://www.aliyun.com/favicon.ico')" title="<%:HTTP request latency, for reference only%>">
 			<div class="block pure-g">
 				<div class="pure-u-1-3">
 					<div class="img-con">
@@ -150,7 +151,7 @@ https://github.com/pure-css/pure/blob/master/LICENSE.md
 				</div>
 			</div>
 		</div>
-		<div class="pure-u-1-4 check" onclick="check_connect('google', 'https://www.google.com/generate_204')" title="<%:TLS handshake test, latency for reference only%>">
+		<div class="pure-u-1-4 check" onclick="check_connect('google', 'https://www.google.com/generate_204')" title="<%:HTTP request latency, for reference only%>">
 			<div class="block pure-g">
 				<div class="pure-u-1-3">
 					<div class="img-con">
@@ -162,7 +163,7 @@ https://github.com/pure-css/pure/blob/master/LICENSE.md
 				</div>
 			</div>
 		</div>
-		<div class="pure-u-1-4 check" onclick="check_connect('github', 'https://github.com')" title="<%:TLS handshake test, latency for reference only%>">
+		<div class="pure-u-1-4 check" onclick="check_connect('github', 'https://github.com/favicon.ico')" title="<%:HTTP request latency, for reference only%>">
 			<div class="block pure-g">
 				<div class="pure-u-1-3">
 					<div class="img-con">
@@ -174,7 +175,7 @@ https://github.com/pure-css/pure/blob/master/LICENSE.md
 				</div>
 			</div>
 		</div>
-		<div class="pure-u-1-4 check" onclick="check_connect('youtube', 'https://www.youtube.com')" title="<%:TLS handshake test, latency for reference only%>">
+		<div class="pure-u-1-4 check" onclick="check_connect('youtube', 'https://www.youtube.com/generate_204')" title="<%:HTTP request latency, for reference only%>">
 			<div class="block pure-g">
 				<div class="pure-u-1-3">
 					<div class="img-con">
@@ -186,7 +187,7 @@ https://github.com/pure-css/pure/blob/master/LICENSE.md
 				</div>
 			</div>
 		</div>
-	  </div>
+	</div>
 	<script>
 		//<![CDATA[
 		var imgs = document.getElementsByTagName('img');
@@ -200,26 +201,26 @@ https://github.com/pure-css/pure/blob/master/LICENSE.md
 				var status_haproxy = document.getElementById('status_haproxy');
 				if (data) {
 					if (true) {
-						var status_tcp_node = document.getElementById('status_tcp_node');
-						if (status_tcp_node) {
+						var status_tcp = document.getElementById('status_tcp');
+						if (status_tcp) {
 							var text = 'TCP<br />';
-							if (data["tcp_node_status"])
+							if (data["tcp_status"])
 								text += '<span class="green"><%:RUNNING%></span>';
 							else
 								text += '<span class="red"><%:NOT RUNNING%></span>';
-							status_tcp_node.innerHTML = text;
+							status_tcp.innerHTML = text;
 						}
 					}
 
 					if (true) {
-						var status_udp_node = document.getElementById('status_udp_node');
-						if (status_udp_node) {
+						var status_udp = document.getElementById('status_udp');
+						if (status_udp) {
 							var text = 'UDP<br />';
-							if (data["udp_node_status"])
+							if (data["udp_status"])
 								text += '<span class="green"><%:RUNNING%></span>';
 							else
 								text += '<span class="red"><%:NOT RUNNING%></span>';
-							status_udp_node.innerHTML = text;
+							status_udp.innerHTML = text;
 						}
 					}
 
@@ -245,6 +246,7 @@ https://github.com/pure-css/pure/blob/master/LICENSE.md
 			if (s) {
 				var div = s.parentNode.parentNode.parentNode.parentNode;
 				div.removeAttribute('onclick');
+				div.title = "<%:HTTP request latency, for reference only%>";
 				s.innerHTML = '<%:Check...%>';
 				var sendDate = (new Date()).getTime();
 				XHR.get('<%=api.url("connect_status")%>', {
@@ -262,6 +264,7 @@ https://github.com/pure-css/pure/blob/master/LICENSE.md
 								s.className="red";
 							}
 							s.innerHTML = use_time + " ms";
+							div.title += "\n<%:Initial handshake time%>: " + rv.handshake_time + " ms";
 						} else if (rv.status) {
 							s.className="green";
 							s.innerHTML = "<%:Working...%>";

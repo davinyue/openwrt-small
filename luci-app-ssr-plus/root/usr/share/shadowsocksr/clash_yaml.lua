@@ -419,7 +419,12 @@ local function get_server_field(sid, option, default)
 	return value
 end
 
+local function ipv6_enabled()
+	return uci:get_first("shadowsocksr", "global", "ipv6_support", "0") == "1"
+end
+
 local function get_filter_aaaa()
+	if ipv6_enabled() then return "0" end
 	local value = uci:get_first("shadowsocksr", "global", "filter_aaaa", "1")
 	if value == nil or value == "" then
 		value = uci:get_first("shadowsocksr", "global", "mosdns_ipv6", "1")
@@ -485,7 +490,8 @@ local function build_tuic_runtime_doc(sid, local_port, socks_port, mode)
 
 	local doc = {
 		["allow-lan"] = true,
-		["bind-address"] = "0.0.0.0",
+		["bind-address"] = ipv6_enabled() and "*" or "0.0.0.0",
+		ipv6 = ipv6_enabled(),
 		mode = "rule",
 		["log-level"] = "silent",
 		["find-process-mode"] = "off",
@@ -520,6 +526,23 @@ local function build_tuic_runtime_doc(sid, local_port, socks_port, mode)
 			doc["socks-port"] = socks_listen
 		end
 	end
+
+	if doc["socks-port"] and doc["socks-port"] > 0 then
+		local socks5_auth = uci:get_first("shadowsocksr", "socks5_proxy", "socks5_auth", "noauth")
+		if socks5_auth == "password" then
+			local socks5_user = uci:get_first("shadowsocksr", "socks5_proxy", "socks5_user", "")
+			local socks5_pass = uci:get_first("shadowsocksr", "socks5_proxy", "socks5_pass", "")
+
+			if socks5_user == "" or socks5_pass == "" then
+				io.stderr:write("警告：SOCKS5 代理未完整配置用户名或密码，已自动降级为无认证模式 (noauth)！\n")
+			else
+				doc["authentication"] = {
+					string.format("%s:%s", socks5_user, socks5_pass)
+				}
+			end
+		end
+	end
+
 
 	return doc
 end
@@ -832,6 +855,13 @@ local function build_v2ray_mihomo_proxy(sid)
 		proxy.cipher = get_server_field(sid, "encrypt_method_ss", "none")
 		proxy.password = get_server_field(sid, "password", "")
 		build_shadowsocks_plugin(proxy, sid)
+	elseif protocol == "anytls" then
+		proxy.type = "anytls"
+		proxy.password = get_server_field(sid, "password", "")
+		apply_trojan_tls_options(proxy, sid)
+		proxy["idle-session-check-interval"] = number_or_nil(get_server_field(sid, "anytls_idle_session_check_interval", ""))
+		proxy["idle-session-timeout"] = number_or_nil(get_server_field(sid, "anytls_idle_session_timeout", ""))
+		proxy["min-idle-session"] = number_or_nil(get_server_field(sid, "anytls_min_idle_session", ""))
 	elseif protocol == "hysteria2" then
 		proxy.type = "hysteria2"
 		proxy.password = get_server_field(sid, "hy2_auth", "")
@@ -846,8 +876,19 @@ local function build_v2ray_mihomo_proxy(sid)
 			proxy.alpn = alpn
 		end
 		if get_server_field(sid, "flag_obfs", "0") == "1" then
-			proxy.obfs = string_or_nil(get_server_field(sid, "obfs_type", ""))
+			local obfs_type = get_server_field(sid, "obfs_type", "")
+			proxy.obfs = string_or_nil(obfs_type)
 			proxy["obfs-password"] = string_or_nil(get_server_field(sid, "salamander", ""))
+			if obfs_type == "gecko" then
+				local min = tonumber(get_server_field(sid, "obfs_MinPacketSize", "")) or 512
+				local max = tonumber(get_server_field(sid, "obfs_MaxPacketSize", "")) or 1200
+				if min <= 0 or min > max or max > 2048 then
+					min = 512
+					max = 1200
+				end
+				proxy["obfs-min-packet-size"] = min
+				proxy["obfs-max-packet-size"] = max
+			end
 		end
 	elseif protocol == "socks" then
 		if not can_mihomo_handle_v2ray_transport(protocol, sid) then
@@ -887,7 +928,9 @@ local function build_v2ray_mihomo_proxy(sid)
 	elseif protocol == "snell" then
 		proxy.type = "snell"
 		proxy.psk = get_server_field(sid, "snell_psk", "")
-		proxy.version = number_or_nil(get_server_field(sid, "snell_version", ""))
+		proxy.version = tonumber(get_server_field(sid, "snell_version", "4")) or 4
+		proxy.reuse = get_server_field(sid, "snell_reuse", "0") == "1"
+		proxy.udp = proxy.version >= 3
 		local obfs_mode = string_or_nil(get_server_field(sid, "snell_obfs", ""))
 		local obfs_host = string_or_nil(get_server_field(sid, "snell_obfs_host", ""))
 		if obfs_mode or obfs_host then
@@ -915,7 +958,8 @@ local function build_single_proxy_runtime_doc(proxy, local_port, socks_port, mod
 	local socks_listen = tonumber(socks_port)
 	local doc = {
 		["allow-lan"] = true,
-		["bind-address"] = "0.0.0.0",
+		["bind-address"] = ipv6_enabled() and "*" or "0.0.0.0",
+		ipv6 = ipv6_enabled(),
 		mode = "rule",
 		["log-level"] = "silent",
 		["find-process-mode"] = "off",
@@ -950,6 +994,23 @@ local function build_single_proxy_runtime_doc(proxy, local_port, socks_port, mod
 			doc["socks-port"] = socks_listen
 		end
 	end
+	if doc["socks-port"] and doc["socks-port"] > 0 then
+		local socks5_auth = uci:get_first("shadowsocksr", "socks5_proxy", "socks5_auth", "noauth")
+		if socks5_auth == "password" then
+			local socks5_user = uci:get_first("shadowsocksr", "socks5_proxy", "socks5_user", "")
+			local socks5_pass = uci:get_first("shadowsocksr", "socks5_proxy", "socks5_pass", "")
+
+			if socks5_user == "" or socks5_pass == "" then
+				io.stderr:write("警告：SOCKS5 代理未完整配置用户名或密码，已自动降级为无认证模式 (noauth)！\n")
+			else
+				doc["authentication"] = {
+					string.format("%s:%s", socks5_user, socks5_pass)
+				}
+			end
+		end
+	end
+
+
 	return doc
 end
 
@@ -1190,7 +1251,8 @@ local function build_shadowsocks_runtime_doc(sid, local_port, socks_port, mode)
 
 	local doc = {
 		["allow-lan"] = true,
-		["bind-address"] = "0.0.0.0",
+		["bind-address"] = ipv6_enabled() and "*" or "0.0.0.0",
+		ipv6 = ipv6_enabled(),
 		mode = "rule",
 		["log-level"] = "silent",
 		["find-process-mode"] = "off",
@@ -1227,6 +1289,23 @@ local function build_shadowsocks_runtime_doc(sid, local_port, socks_port, mode)
 			doc["socks-port"] = socks_listen
 		end
 	end
+
+	if doc["socks-port"] and doc["socks-port"] > 0 then
+		local socks5_auth = uci:get_first("shadowsocksr", "socks5_proxy", "socks5_auth", "noauth")
+		if socks5_auth == "password" then
+			local socks5_user = uci:get_first("shadowsocksr", "socks5_proxy", "socks5_user", "")
+			local socks5_pass = uci:get_first("shadowsocksr", "socks5_proxy", "socks5_pass", "")
+
+			if socks5_user == "" or socks5_pass == "" then
+				io.stderr:write("警告：SOCKS5 代理未完整配置用户名或密码，已自动降级为无认证模式 (noauth)！\n")
+			else
+				doc["authentication"] = {
+					string.format("%s:%s", socks5_user, socks5_pass)
+				}
+			end
+		end
+	end
+
 
 	return doc
 end

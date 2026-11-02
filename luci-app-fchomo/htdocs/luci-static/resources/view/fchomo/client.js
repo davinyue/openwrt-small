@@ -13,17 +13,19 @@ const parseProxyGroupYaml = hm.parseYaml.extend({
 		if (!cfg.type)
 			return null;
 
-		// key mapping // 2026/06/10
+		// key mapping // 2026/07/08
 		let config = hm.removeBlankAttrs({
 			id: this.id,
 			label: this.label,
 			type: cfg.type,
-			groups: cfg.proxies ? cfg.proxies.map((grop) => hm.preset_outbound.full.map(([key, label]) => key).includes(grop) ? grop : this.calcID(hm.glossary["proxy_group"].field, grop)) : null, // array
+			groups: cfg.proxies ? cfg.proxies.map((grop) => hm.preset_outbound.proxy.map(([key, label]) => key).includes(grop) ? grop : this.calcID(hm.glossary["proxy_group"].field, grop)) : null, // array
 			use: cfg.use ? cfg.use.map((prov) => this.calcID(hm.glossary["provider"].field, prov)) : null, // array
 			include_all: this.bool2str(cfg["include-all"]), // bool
 			include_all_proxies: this.bool2str(cfg["include-all-proxies"]), // bool
 			include_all_providers: this.bool2str(cfg["include-all-providers"]), // bool
-			empty_fallback: cfg["empty-fallback"] ? hm.preset_outbound.full.map(([key, label]) => key).includes(cfg["empty-fallback"]) ? cfg["empty-fallback"] : this.calcID(hm.glossary["proxy_group"].field, cfg["empty-fallback"]) : null, // string
+			empty_fallback: cfg["empty-fallback"], // string
+			// Select fields
+			default_selected: cfg["default-selected"], // string
 			// Url-test fields
 			tolerance: cfg.tolerance,
 			// Load-balance fields
@@ -135,9 +137,9 @@ class RulesEntry {
 			Object.keys(content).forEach(key => this[key] = content[key]);
 		} catch {}
 
-		this.type ||= hm.rules_type[0][0];
+		this.type ||= hm.rules_type[0].types[0][0];
 		this.payload ||= [
-			{type: hm.rules_type[0][0], factor: '', /* deny: false */},
+			{type: hm.rules_type[0].types[0][0], factor: '', /* deny: false */},
 			//{type: 'DOMAIN-SUFFIX', factor: '.google.com', deny: true}
 		];
 		this.detour ||= hm.preset_outbound.full[0][0];
@@ -213,7 +215,7 @@ class RulesEntry {
 
 	toString(format) {
 		format ||= 'json';
-		let logical = hm.rules_logical_type.map(e => e[0] || e).includes(this.type);
+		let logical = hm.rules_logical_type.types.map(e => e[0] || e).includes(this.type);
 		let rule, factor, detour, params;
 
 		if (logical) {
@@ -255,9 +257,9 @@ const parseDNSYaml = hm.parseYaml.extend({
 
 		let detour = addr.parseParam('detour');
 		if (detour)
-			addr.setParam('detour', hm.preset_outbound.full.map(([key, label]) => key).includes(detour) ? detour : this.calcID(hm.glossary["proxy_group"].field, detour));
+			addr.setParam('detour', hm.preset_outbound.dns.map(([key, label]) => key).includes(detour) ? detour : detour === 'RULES' ? '' : this.calcID(hm.glossary["proxy_group"].field, detour));
 
-		// key mapping // 2026/01/17
+		// key mapping // 2026/07/08
 		let config = {
 			id: this.id,
 			label: this.label,
@@ -289,7 +291,7 @@ const parseDNSPolicyYaml = hm.parseYaml.extend({
 				break;
 		}
 
-		// key mapping // 2026/01/17
+		// key mapping // 2026/07/08
 		let config = {
 			id: this.id,
 			label: this.label,
@@ -310,7 +312,7 @@ const parseRulesYaml = hm.parseYaml.extend({
 		if (!entry)
 			return null;
 
-		// key mapping // 2026/06/12
+		// key mapping // 2026/07/08
 		let config = {
 			id: this.id,
 			label: '%s %s'.format(this.id.slice(0,7), _('(Imported)')),
@@ -378,7 +380,7 @@ const parseRulesYaml = hm.parseYaml.extend({
 				return null;
 		}
 
-		if (hm.rules_logical_type.map(e => e[0] || e).includes(tp)) {
+		if (hm.rules_logical_type.types.map(e => e[0] || e).includes(tp)) {
 			logical_payload = payload.match(/^\(\((.*)\)\)$/); // LOGIC_TYPE,((payload1),(payload2),(payload3)),DIRECT
 			if (logical_payload)
 				logical_payload = logical_payload[1].split('),(');
@@ -528,11 +530,11 @@ function renderPayload(s, total, uciconfig) {
 	for (let n=0; n<total; n++) {
 		prefix = `payload${n}_`;
 
-		o = s.option(form.ListValue, prefix + 'type', _('Type') + ` ${n+1}`);
-		o.default = hm.rules_type[0][0];
-		hm.rules_type.forEach((res) => {
-			o.value.apply(o, res);
-		})
+		o = s.option(hm.GroupListValue, prefix + 'type', _('Type') + ` ${n+1}`);
+		o.default = hm.rules_type[0].types[0][0];
+		for (const {label, types} of hm.rules_type) {
+			types.forEach((res) => o.value.call(o, res, label));
+		}
 		Object.keys(hm.rules_logical_payload_count).forEach((key) => {
 			if (n < hm.rules_logical_payload_count[key].low)
 				o.depends('type', key);
@@ -561,13 +563,19 @@ function renderPayload(s, total, uciconfig) {
 		o.depends(Object.fromEntries([[prefix + 'type', /\bPROCESS\b/]]));
 		initPayload(o, n, 'factor', uciconfig);
 
-		o = s.option(form.Value, prefix + 'rematchname', _('Factor') + ` ${n+1}`);
-		o.value('rematch1');
-		o.validate = hm.validateAuthUsername;
+		o = s.option(form.ListValue, prefix + 'rematchname', _('Factor') + ` ${n+1}`);
 		if (n === 0)
 			o.depends('type', 'REMATCH-NAME');
 		o.depends(prefix + 'type', 'REMATCH-NAME');
 		initPayload(o, n, 'factor', uciconfig);
+		o.load = L.bind(function(n, key, uciconfig, section_id) {
+			hm.loadLabel.call(this, [
+				['', _('-- Please choose --')],
+				...hm.loadLabelValues(this.config, 'rematch-name')
+			], section_id);
+
+			return new RulesEntry(uci.get(uciconfig, section_id, 'entry')).getPayload(n)[key];
+		}, o, n, 'factor', uciconfig)
 
 		o = s.option(form.Value, prefix + 'uint', _('Factor') + ` ${n+1}`);
 		o.datatype = 'uinteger';
@@ -587,11 +595,23 @@ function renderPayload(s, total, uciconfig) {
 		initPayload(o, n, 'factor', uciconfig);
 
 		o = s.option(form.Value, prefix + 'port', _('Factor') + ` ${n+1}`);
-		o.datatype = 'or(port, portrange)';
+		//o.datatype = 'or(port, portrange)'; // ⬇️ migrated to validate
+		o.placeholder = '1080/2079-2080/3080';
 		if (n === 0)
 			o.depends({type: /\bPORT\b/});
 		o.depends(Object.fromEntries([[prefix + 'type', /\bPORT\b/]]));
 		initPayload(o, n, 'factor', uciconfig);
+		// if validate is already defined in initPayload
+		const port_old_validate = o.validate;
+		o.validate = function(section_id, value) {
+			const result = port_old_validate.apply(this, arguments);
+
+			if (result === true) {
+				this.hm_separator = '/';
+				return hm.validateCommonPort.apply(this, arguments);
+			}
+			return result;
+		}
 
 		o = s.option(form.ListValue, prefix + 'l4', _('Factor') + ` ${n+1}`);
 		o.value('udp', _('UDP'));
@@ -614,7 +634,7 @@ function renderPayload(s, total, uciconfig) {
 		o.depends(prefix + 'type', 'RULE-SET');
 		initPayload(o, n, 'factor', uciconfig);
 		o.load = L.bind(function(n, key, uciconfig, section_id) {
-			hm.loadRulesetLabel.call(this, [], null, section_id);
+			hm.loadLabel.call(this, hm.loadLabelValues(this.config, 'ruleset'), section_id);
 
 			return new RulesEntry(uci.get(uciconfig, section_id, 'entry')).getPayload(n)[key];
 		}, o, n, 'factor', uciconfig)
@@ -649,11 +669,10 @@ function renderPayload(s, total, uciconfig) {
 	Object.keys(extenbox).forEach((n) => {
 		prefix = `payload${n}_`;
 
-		o = s.option(hm.StaticList, prefix + 'type', _('Type') + ' ++');
-		o.default = hm.rules_type[0][0];
-		hm.rules_type.forEach((res) => {
-			o.value.apply(o, res);
-		})
+		o = s.option(hm.GroupStaticList, prefix + 'type', _('Type') + ' ++');
+		for (const {label, types} of hm.rules_type) {
+			types.forEach((res) => o.value.call(o, res, label));
+		}
 		extenbox[n].forEach((type) => {
 			o.depends('type', type);
 		})
@@ -675,21 +694,19 @@ function renderPayload(s, total, uciconfig) {
 			return true;
 		}
 
-		o = s.option(hm.less_25_12 ? hm.DynamicList : form.DynamicList, prefix + 'fused', _('Factor') + ' ++', // @less_25_12
+		o = s.option(hm.GroupDynamicList, prefix + 'fused', _('Factor') + ' ++',
 			_('Content will not be verified, Please make sure you enter it correctly.'));
 		extenbox[n].forEach((type) => {
 			o.depends(Object.fromEntries([['type', type], [prefix + 'type', /.+/]]));
 		})
 		initDynamicPayload(o, n, 'factor', uciconfig);
 		o.load = L.bind(function(n, key, uciconfig, section_id) {
-			let fusedval = [
-				['NETWORK', '-- NETWORK --'],
-				['udp', _('UDP')],
-				['tcp', _('TCP')],
-				['RULESET', '-- RULE-SET --']
-			];
-			hm.loadRulesetLabel.call(this, fusedval, null, section_id);
-			this.super('load', section_id);
+			hm.loadLabel.call(this, [
+				...hm.loadLabelValues(this.config, 'rematch-name').map(e => [e, _('REMATCH-NAME')]),
+				[['udp', _('UDP')], _('NETWORK')],
+				[['tcp', _('TCP')], _('NETWORK')],
+				...hm.loadLabelValues(this.config, 'ruleset').map(e => [e, _('RULE-SET')])
+			], section_id);
 
 			return new RulesEntry(uci.get(uciconfig, section_id, 'entry')).getPayloads().slice(n).map(e => e[key] ?? '');
 		}, o, n, 'factor', uciconfig)
@@ -743,11 +760,11 @@ function renderRules(s, uciconfig) {
 	o.remove = form.AbstractValue.prototype.remove;
 	o.editable = true;
 
-	o = s.option(form.ListValue, 'type', _('Type'));
-	o.default = hm.rules_type[0][0];
-	[...hm.rules_type, ...hm.rules_logical_type].forEach((res) => {
-		o.value.apply(o, res);
-	})
+	o = s.option(hm.GroupListValue, 'type', _('Type'));
+	o.default = hm.rules_type[0].types[0][0];
+	for (const {label, types} of hm.rules_type.concat(hm.rules_logical_type)) {
+		types.forEach((res) => o.value.call(o, res, label));
+	}
 	o.load = function(section_id) {
 		return new RulesEntry(uci.get(uciconfig, section_id, 'entry')).type;
 	}
@@ -791,7 +808,10 @@ function renderRules(s, uciconfig) {
 
 	o = s.option(hm.ListValue, 'detour', _('Proxy group'));
 	o.load = function(section_id) {
-		hm.loadProxyGroupLabel.call(this, hm.preset_outbound.full, section_id);
+		hm.loadLabel.call(this, [
+			...hm.preset_outbound.full,
+			...hm.loadLabelValues(this.config, 'proxy_group')
+		], section_id);
 
 		return new RulesEntry(uci.get(uciconfig, section_id, 'entry')).detour;
 	}
@@ -867,7 +887,12 @@ function renderPolicies(s, uciconfig) {
 	o = s.option(form.MultiValue, 'rule_set', _('Rule set'),
 		_('Match rule set.'));
 	o.value('', _('-- Please choose --'));
-	o.load = L.bind(hm.loadRulesetLabel, o, [['', _('-- Please choose --')]], ['domain', 'classical']);
+	o.load = function(section_id) {
+		return hm.loadLabel.call(this, [
+			['', _('-- Please choose --')],
+			...hm.loadLabelValues(this.config, 'ruleset', {behaviors: ['domain', 'classical']})
+		], section_id);
+	}
 	o.depends('type', 'rule_set');
 	o.modalonly = true;
 
@@ -893,7 +918,12 @@ function renderPolicies(s, uciconfig) {
 	hm.preset_outbound.direct.forEach((res) => {
 		o.value.apply(o, res);
 	})
-	o.load = L.bind(hm.loadProxyGroupLabel, o, hm.preset_outbound.direct);
+	o.load = function(section_id) {
+		return hm.loadLabel.call(this, [
+			...hm.preset_outbound.direct,
+			...hm.loadLabelValues(this.config, 'proxy_group')
+		], section_id);
+	}
 	o.editable = true;
 }
 
@@ -995,6 +1025,7 @@ return view.extend({
 							'- name: AllProvider\n' +
 							'  type: select\n' +
 							'  include-all-providers: true\n' +
+							'  default-selected: proxy1\n' +
 							'  filter: "(?i)港|hk|hongkong|hong kong"\n' +
 							'  exclude-filter: "美|日"\n' +
 							'  exclude-type: "Shadowsocks|Http"\n' +
@@ -1041,16 +1072,28 @@ return view.extend({
 			so.value.apply(so, res);
 		})
 
-		so = ss.taboption('field_general', form.MultiValue, 'groups', _('Group'));
-		hm.preset_outbound.full.forEach((res) => {
+		so = ss.taboption('field_general', hm.MultiValue, 'groups', _('Group')); // @pr8758_merged
+		hm.preset_outbound.proxy.forEach((res) => {
 			so.value.apply(so, res);
 		})
-		so.load = L.bind(hm.loadProxyGroupLabel, so, hm.preset_outbound.full);
+		so.keep_order = true;
+		so.load = function(section_id) {
+			return hm.loadLabel.call(this, [
+				...hm.preset_outbound.proxy,
+				...hm.loadLabelValues(this.config, 'proxy_group')
+			], section_id);
+		}
 		so.editable = true;
 
-		so = ss.taboption('field_general', form.MultiValue, 'proxies', _('Node'));
+		so = ss.taboption('field_general', hm.MultiValue, 'proxies', _('Node')); // @pr8758_merged
 		so.value('', _('-- Please choose --'));
-		so.load = L.bind(hm.loadNodeLabel, so, [['', _('-- Please choose --')]]);
+		so.keep_order = true;
+		so.load = function(section_id) {
+			return hm.loadLabel.call(this, [
+				['', _('-- Please choose --')],
+				...hm.loadLabelValues(this.config, 'node')
+			], section_id);
+		}
 		so.validate = function(section_id, value) {
 			if (this.section.getOption('include_all').formvalue(section_id) === '1' ||
 			    this.section.getOption('include_all_proxies').formvalue(section_id) === '1')
@@ -1062,9 +1105,15 @@ return view.extend({
 		}
 		so.editable = true;
 
-		so = ss.taboption('field_general', form.MultiValue, 'use', _('Provider'));
+		so = ss.taboption('field_general', hm.MultiValue, 'use', _('Provider')); // @pr8758_merged
 		so.value('', _('-- Please choose --'));
-		so.load = L.bind(hm.loadProviderLabel, so, [['', _('-- Please choose --')]]);
+		so.keep_order = true;
+		so.load = function(section_id) {
+			return hm.loadLabel.call(this, [
+				['', _('-- Please choose --')],
+				...hm.loadLabelValues(this.config, 'provider')
+			], section_id);
+		}
 		so.validate = function(section_id, value) {
 			if (this.section.getOption('include_all').formvalue(section_id) === '1' ||
 			    this.section.getOption('include_all_providers').formvalue(section_id) === '1')
@@ -1096,8 +1145,14 @@ return view.extend({
 		hm.preset_outbound.proxy.forEach((res) => {
 			so.value.apply(so, res);
 		})
-		so.load = L.bind(hm.loadNodeLabel, so, hm.preset_outbound.proxy);
-		so.modalonly = true;
+		so.load = function(section_id) {
+			return hm.loadLabel.call(this, [
+				...hm.preset_outbound.proxy,
+				['NODE', _('-- PROXY-NODE --')],
+				...hm.loadLabelValues(this.config, 'node')
+			], section_id);
+		}
+		so.textvalue = hm.textvalue2Value;
 
 		/* Override fields */
 		so = ss.taboption('field_override', form.Flag, 'disable_udp', _('Disable UDP'));
@@ -1149,6 +1204,23 @@ return view.extend({
 		so.placeholder = '5';
 		so.depends({type: 'select', '!reverse': true});
 		so.modalonly = true;
+
+		/* Select fields */
+		so = ss.taboption('field_general', form.Value, 'default_selected', _('Default selected'));
+		hm.preset_outbound.proxy.forEach((res) => {
+			so.value.apply(so, res);
+		})
+		so.load = function(section_id) {
+			return hm.loadLabel.call(this, [
+				...hm.preset_outbound.proxy,
+				['GROUP', _('-- PROXY-GROUP --')],
+				...hm.loadLabelValues(this.config, 'proxy_group'),
+				['NODE', _('-- PROXY-NODE --')],
+				...hm.loadLabelValues(this.config, 'node')
+			], section_id);
+		}
+		so.depends('type', 'select');
+		so.textvalue = hm.textvalue2Value;
 
 		/* Url-test fields */
 		so = ss.taboption('field_general', form.Value, 'tolerance', _('Node switch tolerance'),
@@ -1293,7 +1365,10 @@ return view.extend({
 
 		so = ss.option(form.ListValue, 'SUB-RULE', _('SUB-RULE'));
 		so.load = function(section_id) {
-			hm.loadSubRuleGroup.call(this, [['', _('-- Please choose --')]], section_id);
+			hm.loadLabel.call(this, [
+				['', _('-- Please choose --')],
+				...hm.loadLabelValues(this.config, 'subrule-group')
+			], section_id);
 
 			return new RulesEntry(uci.get(data[0], section_id, 'entry')).subrule || '';
 		}
@@ -1563,7 +1638,10 @@ return view.extend({
 
 		so = ss.option(hm.ListValue, 'detour', _('Proxy group'));
 		so.load = function(section_id) {
-			hm.loadProxyGroupLabel.call(this, hm.preset_outbound.dns, section_id);
+			hm.loadLabel.call(this, [
+				...hm.preset_outbound.dns,
+				...hm.loadLabelValues(this.config, 'proxy_group')
+			], section_id);
 
 			return new DNSAddress(uci.get(data[0], section_id, 'address')).parseParam('detour');
 		}
@@ -1833,7 +1911,8 @@ return view.extend({
 
 		so = ss.option(form.DynamicList, 'fallback_filter_geosite', _('Geosite'),
 			_('Match geosite.</br>') +
-			_('The matching <code>%s</code> will be deemed as poisoned.').format(_('Domain')));
+			_('The matching <code>%s</code> will be deemed as poisoned.').format(_('Domain')) + `</br>` +
+			_('Option is deprecated. Please use <code>%s</code> instead.').format(_('DNS policy')));
 
 		so = ss.option(form.DynamicList, 'fallback_filter_ipcidr', _('IP CIDR'),
 			_('Match response with ipcidr.</br>') +
@@ -1843,6 +1922,23 @@ return view.extend({
 		so = ss.option(form.DynamicList, 'fallback_filter_domain', _('Domain'),
 			_('Match domain. Support wildcards.</br>') +
 			_('The matching <code>%s</code> will be deemed as poisoned.').format(_('Domain')));
+
+		so = ss.option(form.Flag, 'fallback_lazy_query', _('Lazy query'),
+			_('Lazy query.'));
+		so.default = so.disabled;
+		so.validate = function(section_id, value) {
+			const desc = this.getUIElement(section_id).node.nextSibling;
+			value = this.formvalue(section_id);
+
+			if (value == 1)
+				desc.innerHTML = _('Check the response from the <code>%s</code>, only initiate query if the <code>%s</code> is satisfied.')
+					.format(_('Default DNS server'), _('Fallback filter'));
+			else
+				desc.innerHTML = _('Send queries to both the <code>%s</code> and the <code>%s</code>.')
+					.format(_('Default DNS server'), _('Fallback DNS server'));
+
+			return true;
+		}
 		/* Fallback filter END */
 
 		return m.render();

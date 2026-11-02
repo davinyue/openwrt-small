@@ -134,8 +134,10 @@
 
 .cl-wrap .cl-status-kernel .cl-core-btn {
   height: 24px;
-  line-height: 24px;
+  min-height: 0 !important;
+  line-height: 24px !important;
   min-width: 60px;
+  margin-left: 0;
   padding: 0 10px;
   border: 0;
   border-radius: 6px;
@@ -146,6 +148,8 @@
   color: var(--cl-label-muted);
   opacity: 0.6;
   cursor: pointer;
+  text-transform: none;
+  transform: none !important;
   transition: background-color 0.18s ease, color 0.18s ease, opacity 0.18s ease;
 }
 
@@ -166,6 +170,11 @@
 }
 
 .cl-wrap .cl-status-kernel .cl-core-btn:disabled {
+  cursor: not-allowed;
+}
+
+.cl-wrap .cbi-checkbox input:disabled + label {
+  opacity: 0.4;
   cursor: not-allowed;
 }
 
@@ -1376,10 +1385,10 @@ html[data-bs-theme="dark"] .cl-wrap .cl-live-num {
 
 .cl-wrap.cl-overview-page .cl-card-mode .cl-mode-row {
   display: grid !important;
-  grid-template-columns: 58px 102px 34px !important;
+  grid-template-columns: 142px 83px 30px !important;
   align-items: center !important;
   column-gap: 4px !important;
-  width: 210px !important;
+  width: 263px !important;
   max-width: 100% !important;
   margin: 0 !important;
 }

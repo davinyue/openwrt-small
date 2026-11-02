@@ -53,8 +53,15 @@ uci.foreach(uciconf, uciserver, (cfg) => {
 	if (cfg.enabled === '0')
 		return;
 
-	push(config.listeners, parseListener(cfg, false));
+	push(config.listeners, parseListener(cfg));
 });
 /* Inbound END */
+
+/* Routing rules START */
+/* Routing rules */
+config.rules = [
+	"MATCH,DIRECT"
+];
+/* Routing rules END */
 
 printf('%.J\n', removeBlankAttrs(config));

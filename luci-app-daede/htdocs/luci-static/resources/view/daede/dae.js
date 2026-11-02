@@ -15,8 +15,10 @@ const RE_PLACEHOLDER_URL = /(['"])(?:(?:https?|https-file|file):\/\/[^'"]*?(?:ex
 const DEFAULT_TEMPLATE =
 	'# luci-app-daede 默认配置：把 subscription 里的占位链接换成你的机场订阅，保存即可运行。\n' +
 	'global {\n' +
+	'    # 端口与网卡：lan_interface 填内网桥（通常 br-lan），wan_interface 保持 auto 即可。\n' +
 	'    tproxy_port: 12345\n' +
 	'    tproxy_port_protect: true\n' +
+	'    so_mark_from_dae: 0\n' +
 	'    log_level: info\n' +
 	'    lan_interface: br-lan\n' +
 	'    wan_interface: auto\n' +
@@ -34,13 +36,16 @@ const DEFAULT_TEMPLATE =
 	'}\n' +
 	'\n' +
 	'dns {\n' +
+	'    # 国内域名走 cndns 解析，其余走 fallbackdns，避免 DNS 污染。\n' +
 	'    ipversion_prefer: 4\n' +
+	'    response_ttl: 0\n' +
 	'    upstream {\n' +
 	"        cndns: 'udp://dns.alidns.com:53'\n" +
 	"        fallbackdns: 'tcp+udp://dns.google:53'\n" +
 	'    }\n' +
 	'    routing {\n' +
 	'        request {\n' +
+	'            qname(suffix:googleapis.cn) -> fallbackdns\n' +
 	'            qname(geosite:cn) -> cndns\n' +
 	'            fallback: fallbackdns\n' +
 	'        }\n' +
@@ -48,6 +53,7 @@ const DEFAULT_TEMPLATE =
 	'}\n' +
 	'\n' +
 	'group {\n' +
+	'    # 节点分组：filter 决定用订阅里的哪些节点，policy 决定怎么选（min_moving_avg = 自动挑最快）。\n' +
 	'    proxy {\n' +
 	'        filter: subtag(my_airport)\n' +
 	'        policy: min_moving_avg\n' +
@@ -55,6 +61,8 @@ const DEFAULT_TEMPLATE =
 	'}\n' +
 	'\n' +
 	'routing {\n' +
+	'    # 分流规则：从上往下匹配，命中即停，最后由 fallback 兜底。\n' +
+	'    # 想让某个网站直连，在 fallback 之前加一行，例如：domain(example.com) -> direct\n' +
 	'    pname(NetworkManager) -> direct\n' +
 	'    dip(224.0.0.0/3) -> direct\n' +
 	'    dip(255.255.255.255/32) -> direct\n' +
@@ -63,6 +71,7 @@ const DEFAULT_TEMPLATE =
 	'    l4proto(udp) && dport(123) -> direct\n' +
 	'    domain(connectivitycheck.gstatic.com) -> direct\n' +
 	'    domain(msftconnecttest.com) -> direct\n' +
+	'    domain(suffix:googleapis.cn) -> proxy\n' +
 	'    dip(geoip:cn) -> direct\n' +
 	'    domain(geosite:cn) -> direct\n' +
 	'    fallback: proxy\n' +
@@ -302,6 +311,11 @@ function renderDaeForms(ctx) {
 		_('Resolves everything else.'));
 	o.default = 'tcp+udp://dns.google:53';
 	o.placeholder = 'tcp+udp://dns.google:53';
+	o = s.option(form.Value, 'response_ttl', _('DNS response TTL'),
+		_('TTL returned to LAN DNS clients. 0 keeps dae default behavior.'));
+	o.datatype = 'uinteger';
+	o.default = '0';
+	o.placeholder = '60';
 
 	/* Logging — folded into the main form so the single Save button covers it
 	   too (no separate native save bar) */
@@ -324,6 +338,15 @@ function renderDaeForms(ctx) {
 
 	s = m.section(form.NamedSection, 'config', 'dae', _('Logging'));
 	s.addremove = false;
+	o = s.option(form.ListValue, 'log_level', _('Log level'),
+		_('Debug and trace show per-connection routing details, but increase CPU usage and log volume. Enable them only while troubleshooting.'));
+	o.value('error', 'ERROR');
+	o.value('warn', 'WARN');
+	o.value('info', 'INFO');
+	o.value('debug', 'DEBUG');
+	o.value('trace', 'TRACE');
+	o.default = 'info';
+	o.rmempty = false;
 	o = s.option(form.Value, 'log_maxsize', _('Max Log Size (MB)'),
 		_('Rotate the log file once it grows past this many megabytes.'));
 	o.datatype = 'uinteger';
@@ -417,6 +440,7 @@ function renderDaeForms(ctx) {
 			.finally(function() {
 				restoreLiveAccordions();
 				btns.forEach(function(b) { b.disabled = false; });
+				window.setTimeout(function() { ui.changes.init(); }, 1800);
 			});
 	}
 
@@ -562,6 +586,7 @@ function renderDaeEditor() {
 	const textarea = E('textarea', {
 		'class': 'dd-editor dd-editor-hl',
 		'spellcheck': 'false',
+		'wrap': 'off',
 		'placeholder': _('dae config file is empty. Click "Load default config" to start, or paste your config here.')
 	}, '');
 	const hlCode = E('code', {});
@@ -570,8 +595,12 @@ function renderDaeEditor() {
 	function syncHL() {
 		hlCode.innerHTML = highlightDae(textarea.value) + '\n';
 		hlPre.scrollTop = textarea.scrollTop;
+		hlPre.scrollLeft = textarea.scrollLeft;
 	}
-	textarea.addEventListener('scroll', function() { hlPre.scrollTop = textarea.scrollTop; });
+	textarea.addEventListener('scroll', function() {
+		hlPre.scrollTop = textarea.scrollTop;
+		hlPre.scrollLeft = textarea.scrollLeft;
+	});
 	const save = E('button', { 'class': 'cbi-button cbi-button-positive' }, _('Save manual config'));
 	const init = E('button', { 'class': 'cbi-button cbi-button-action' }, _('Load default config'));
 	const status = E('span', { 'class': 'dd-editor-status' }, '');
@@ -677,7 +706,7 @@ function renderDaeEditor() {
 		save.disabled = true;
 		flashStatus(_('Validating…'));
 		fs.write(VALIDATE_PATH, textarea.value, 384)
-			.then(function() { return fs.exec('/usr/bin/dae', ['validate', '-c', VALIDATE_PATH]); })
+			.then(function() { return fs.exec('/usr/bin/env', ['DAE_LOCATION_ASSET=/usr/share/v2ray', '/usr/bin/dae', 'validate', '-c', VALIDATE_PATH]); })
 			.then(function(res) {
 				if (res && res.code !== 0) {
 					const err = (res.stderr || res.stdout || ('exit ' + res.code)).trim().split('\n')[0];

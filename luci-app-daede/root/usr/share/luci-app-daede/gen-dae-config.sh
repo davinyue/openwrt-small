@@ -13,7 +13,7 @@
 #   config group             name/policy, list source, list name_filter
 #                            (old list filter_sub/filter_node still read as fallback)
 #   config routing 'routing' private_direct/cn_direct/block_ads/fallback, list custom
-#   config dns 'dns'         cn_upstream/fallback_upstream
+#   config dns 'dns'         cn_upstream/fallback_upstream/response_ttl
 
 . /lib/functions.sh
 
@@ -213,7 +213,7 @@ generate() {
 	fi
 
 	# routing / dns singletons
-	local private_direct cn_direct block_ads fallback cn_up fb_up
+	local private_direct cn_direct block_ads fallback cn_up fb_up response_ttl
 	config_get_bool private_direct routing private_direct 1
 	config_get_bool cn_direct routing cn_direct 1
 	config_get_bool block_ads routing block_ads 0
@@ -222,14 +222,19 @@ generate() {
 	fallback="$(sanitize "$fallback")"
 	config_get cn_up dns cn_upstream "udp://dns.alidns.com:53"
 	config_get fb_up dns fallback_upstream "tcp+udp://dns.google:53"
+	config_get response_ttl dns response_ttl "0"
 	cn_up="$(sanitize "$cn_up")"
 	fb_up="$(sanitize "$fb_up")"
+	case "$response_ttl" in
+		''|*[!0-9]*) response_ttl=0 ;;
+	esac
 
 	{
 		echo "# 本配置由 luci-app-daede 表单自动生成，再次保存表单会覆盖你的手动修改。"
 		echo "global {"
 		echo "    tproxy_port: 12345"
 		echo "    tproxy_port_protect: true"
+		echo "    so_mark_from_dae: 0"
 		echo "    log_level: ${log_level}"
 		[ -n "$lan_interface" ] && echo "    lan_interface: ${lan_interface}"
 		echo "    wan_interface: ${wan_interface}"
@@ -258,6 +263,7 @@ generate() {
 
 		echo "dns {"
 		echo "    ipversion_prefer: 4"
+		[ "$response_ttl" -gt 0 ] && echo "    response_ttl: ${response_ttl}"
 		echo "    upstream {"
 		echo "        cndns: '${cn_up}'"
 		echo "        fallbackdns: '${fb_up}'"
@@ -265,6 +271,7 @@ generate() {
 		echo "    routing {"
 		echo "        request {"
 		[ "$block_ads" = "1" ] && echo "            qname(geosite:category-ads-all) -> reject"
+		echo "            qname(suffix:googleapis.cn) -> fallbackdns"
 		echo "            qname(geosite:cn) -> cndns"
 		echo "            fallback: fallbackdns"
 		echo "        }"
@@ -289,6 +296,7 @@ generate() {
 		# OS connectivity checks direct (avoid captive-portal false positives)
 		echo "    domain(connectivitycheck.gstatic.com) -> direct"
 		echo "    domain(msftconnecttest.com) -> direct"
+		echo "    domain(suffix:googleapis.cn) -> ${fallback}"
 		if [ "$cn_direct" = "1" ]; then
 			echo "    dip(geoip:cn) -> direct"
 			echo "    domain(geosite:cn) -> direct"
@@ -302,7 +310,7 @@ generate() {
 
 	# overwrite live config only if validation passes
 	local out
-	out="$("$DAE_BIN" validate -c "$TMP_GEN" 2>&1)"
+	out="$(DAE_LOCATION_ASSET="/usr/share/v2ray" "$DAE_BIN" validate -c "$TMP_GEN" 2>&1)"
 	if [ $? -ne 0 ]; then
 		echo "validate failed: $(echo "$out" | head -1)" >&2
 		rm -f "$TMP_GEN"

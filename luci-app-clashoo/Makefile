@@ -1,9 +1,10 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=luci-app-clashoo
-PKG_VERSION:=1.27.6
-PKG_RELEASE:=1
+PKG_VERSION:=1.31.0
+PKG_RELEASE:=9
 PKG_MAINTAINER:=kenzok8
+PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_NAME)
 
 include $(INCLUDE_DIR)/package.mk
 
@@ -12,7 +13,7 @@ define Package/luci-app-clashoo
   CATEGORY:=LuCI
   SUBMENU:=3. Applications
   TITLE:=LuCI app for Clashoo
-  DEPENDS:=+luci-base +clashoo
+  DEPENDS:=+luci-base +clashoo +luci-i18n-clashoo-zh-cn
   PKGARCH:=all
   MAINTAINER:=kenzok8
 endef
@@ -24,12 +25,18 @@ endef
 define Build/Configure
 endef
 
+define Build/Prepare
+	mkdir -p $(PKG_BUILD_DIR)
+	po2lmo ./po/zh-cn/clashoo.po $(PKG_BUILD_DIR)/clashoo.zh-cn.lmo
+endef
+
 define Build/Compile
 endef
 
 define Package/luci-app-clashoo/install
 	$(INSTALL_DIR) $(1)/usr/share/rpcd/ucode
 	$(INSTALL_DIR) $(1)/usr/share/rpcd/acl.d
+	$(INSTALL_DIR) $(1)/usr/share/clashoo/rpc
 	$(INSTALL_DIR) $(1)/usr/share/luci/menu.d
 	$(INSTALL_DIR) $(1)/www/luci-static/resources/tools
 	$(INSTALL_DIR) $(1)/www/luci-static/resources/view/clashoo
@@ -38,6 +45,7 @@ define Package/luci-app-clashoo/install
 	$(INSTALL_DIR) $(1)/www/luci-static/clashoo
 
 	$(INSTALL_BIN) ./root/usr/share/rpcd/ucode/luci.clashoo $(1)/usr/share/rpcd/ucode/luci.clashoo
+	$(INSTALL_BIN) ./root/usr/share/clashoo/rpc/backup_archive.sh $(1)/usr/share/clashoo/rpc/backup_archive.sh
 	$(INSTALL_DATA) ./root/usr/share/rpcd/acl.d/luci-app-clashoo.json $(1)/usr/share/rpcd/acl.d/luci-app-clashoo.json
 	$(INSTALL_DATA) ./root/usr/share/luci/menu.d/luci-app-clashoo.json $(1)/usr/share/luci/menu.d/luci-app-clashoo.json
 
@@ -67,13 +75,15 @@ define Package/luci-i18n-clashoo-zh-cn
 	SECTION:=luci
 	CATEGORY:=LuCI
 	TITLE:=luci-app-clashoo - Simplified Chinese (zh-cn)
-	DEPENDS:=+luci-app-clashoo
+	DEPENDS:=+luci-base
+	DEFAULT:=LUCI_LANG_zh_Hans||(ALL&&m)
+	HIDDEN:=1
 	PKGARCH:=all
 endef
 
 define Package/luci-i18n-clashoo-zh-cn/install
 	$(INSTALL_DIR) $(1)/usr/lib/lua/luci/i18n
-	$(INSTALL_DATA) ./po/zh-cn/clashoo.zh-cn.lmo $(1)/usr/lib/lua/luci/i18n
+	$(INSTALL_DATA) $(PKG_BUILD_DIR)/clashoo.zh-cn.lmo $(1)/usr/lib/lua/luci/i18n/clashoo.zh-cn.lmo
 endef
 
 define Package/luci-i18n-clashoo-zh-cn/postinst
@@ -81,7 +91,7 @@ define Package/luci-i18n-clashoo-zh-cn/postinst
 if [ -z "$${IPKG_INSTROOT}" ]; then
 	# just clear the LuCI cache so the new translations load on next request;
 	# no service restart needed (and none that would drop the login session).
-	rm -rf /tmp/luci*
+	rm -rf /tmp/luci-indexcache /tmp/luci-modulecache
 fi
 exit 0
 endef

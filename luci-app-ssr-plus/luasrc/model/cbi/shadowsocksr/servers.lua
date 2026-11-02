@@ -29,42 +29,56 @@ local function is_js_luci()
 	return luci.sys.call('[ -f "/www/luci-static/resources/uci.js" ]') == 0
 end
 
--- 保存并应用行为
+-- 默认的保存并应用行为
 local function apply_redirect(m)
-	local tmp_uci_file = "/etc/config/" .. "shadowsocksr" .. "_redirect"
+	local tmp_uci_file = "/etc/config/shadowsocksr_redirect"
 	if m.redirect and m.redirect ~= "" then
+		-- 如果存在临时文件，读取 URL 并通过 luci.http.redirect 跳转
 		if nixio.fs.access(tmp_uci_file) then
-			local redirect
+			local redirect_url
 			for line in io.lines(tmp_uci_file) do
-				redirect = line:match("option%s+url%s+['\"]([^'\"]+)['\"]")
-				if redirect and redirect ~= "" then break end
+				redirect_url = line:match("option%s+url%s+['\"]([^'\"]+)['\"]")
+				if redirect_url and redirect_url ~= "" then break end
 			end
-			if redirect and redirect ~= "" then
-				luci.sys.call("/bin/rm -f " .. tmp_uci_file)
-				luci.http.redirect(redirect)
+			if redirect_url and redirect_url ~= "" then
+				-- 使用 nixio 安全删除文件，替代外部 Shell 命令
+				nixio.fs.remove(tmp_uci_file)
+				-- JS 版 LuCI 依赖 luci.http.redirect 向前端重定向
+				luci.http.redirect(redirect_url)
+				return
 			end
 		else
+			-- 创建标记文件
 			nixio.fs.writefile(tmp_uci_file, "config redirect\n")
 		end
+		-- 挂载保存回调
+		local old_on_after_save = m.on_after_save
 		m.on_after_save = function(self)
-			local redirect = self.redirect
-			if redirect and redirect ~= "" then
-				m.uci:set("shadowsocksr" .. "_redirect", "@redirect[0]", "url", redirect)
+			if old_on_after_save then old_on_after_save(self) end
+			local target = self.redirect
+			if target and target ~= "" then
+				-- 使用标准的 nixio.fs 写入文件，保持格式一致
+				local content = string.format("config redirect\n\toption url '%s'\n", target)
+				nixio.fs.writefile(tmp_uci_file, content)
 			end
 		end
 	else
-		luci.sys.call("/bin/rm -f " .. tmp_uci_file)
+		-- 不满足重定向条件时清理文件
+		if nixio.fs.access(tmp_uci_file) then
+			nixio.fs.remove(tmp_uci_file)
+		end
 	end
 end
 
-local function set_apply_on_parse(map)
-	if not map then return end
-	if is_js_luci() then
-		apply_redirect(map)
-		local old = map.on_after_save
-		map.on_after_save = function(self)
-			if old then old(self) end
-			-- map:set("@global[0]", "timestamp", os.time())
+local function set_apply_on_parse(m)
+	if not m then return end
+	-- is_js_luci 保护
+	if is_js_luci and is_js_luci() then
+		apply_redirect(m)
+		local old_on_after_save = m.on_after_save
+		m.on_after_save = function(self)
+			if old_on_after_save then old_on_after_save(self) end
+			-- m:set("@global[0]", "timestamp", os.time())
 		end
 	end
 end
@@ -529,6 +543,7 @@ o:value("https://www.google.com/generate_204", "Google")
 o:value("https://www.youtube.com/generate_204", "YouTube")
 o:value("https://connect.rom.miui.com/generate_204", "MIUI (CN)")
 o:value("https://connectivitycheck.platform.hicloud.com/generate_204", "HiCloud (CN)")
+o:value("https://wifi.vivo.com.cn/generate_204", "VIVO (CN)")
 o.default = o.keylist[3]
 
 
@@ -546,10 +561,16 @@ if has_mihomo then
 	o.template = "shadowsocksr/clash_yaml_upload"
 	o.description = translate("Upload a custom Clash/Mihomo YAML file. The file will be preprocessed and saved as a local Clash node.")
 
+	o = s:option(Flag, "enable_mihomo", string.format("<b><span style='color:red;'>%s</span></b>", translate("Enable Mihomo core")))
+	o.default = "0"
+	o.rmempty = true
+	o.description = translate("Disabled means use Xray or ShadowSocks-Rust core.")
+
 	o = s:option(Flag, "sub_convert", translate("Subscribe Convert Online"))
 	o.description = translate("Convert subscriptions to Clash/Mihomo YAML with a subscription template URL.")
 	o.default = "0"
 	o.rmempty = false
+	o:depends("enable_mihomo", "1")
 
 	o = s:option(Value, "convert_address", translate("Convert Address"))
 	o.default = "https://api.asailor.org/sub"
@@ -563,6 +584,7 @@ if has_mihomo then
 	o.default = "https://raw.githubusercontent.com/Fzlwhyc/OpenClash-Templates/main//fzlwhyc-openclash.ini"
 	o.placeholder = "https://raw.githubusercontent.com/Fzlwhyc/OpenClash-Templates/main//fzlwhyc-openclash.ini"
 	o:value("https://raw.githubusercontent.com/Fzlwhyc/OpenClash-Templates/main//fzlwhyc-openclash.ini", "Fzlwhyc")
+	o:value("https://gist.githubusercontent.com/vernesong/4c27ed54ab2a5fedd9c4011389ac11ed/raw/lhie1_clash.ini", "lhie1")
 	o.rmempty = true
 	o:depends("sub_convert", "1")
 end

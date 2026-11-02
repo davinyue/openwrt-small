@@ -136,6 +136,9 @@ o:value("https://ispip.clang.cn/all_cn_cidr.txt", translate("Clang.CN.CIDR"))
 o:value("https://fastly.jsdelivr.net/gh/gaoyifan/china-operator-ip@ip-lists/china.txt", translate("china-operator-ip"))
 o.default = "https://ispip.clang.cn/all_cn.txt"
 
+o = s:option(Value, "chnroute6_url", translate("China IPv6 list update URL"))
+o.default = "https://raw.githubusercontent.com/1715173329/IPCIDR-CHINA/master/ipv6.txt"
+
 o = s:option(Flag, "apple_optimization", translate("Apple domains optimization"), translate("For Apple domains equipped with Chinese mainland CDN, always responsive to Chinese CDN IP addresses"))
 o.rmempty = false
 o.default = "1"
@@ -260,8 +263,10 @@ if is_finded("xray") then
 	o = s:option(Value, "fragment_length", translate("Fragment Length"))
 	if xray_version_val <= 260601 then
 		o.datatype = "or(uinteger,portrange)"
+		o.default = "100-200"
+	else
+		o.default = "3-5,6-8,10-20"
 	end
-	o.default = "100-200"
 	o:depends("fragment", true)
 	o.description = translate(
     	"<ul>" ..
@@ -273,8 +278,10 @@ if is_finded("xray") then
 	o = s:option(Value, "fragment_delay", translate("Fragment Delay"))
 	if xray_version_val <= 260601 then
 		o.datatype = "or(uinteger,portrange)"
+		o.default = "10-20"
+	else
+		o.default = "1-2,5-6,10-20"
 	end
-	o.default = "10-20"
 	o:depends("fragment", true)
 	o.description = translate(
     	"<ul>" ..
@@ -285,7 +292,12 @@ if is_finded("xray") then
 
 	o = s:option(Value, "fragment_maxSplit", translate("Max Split"), translate("Limit the maximum number of splits."))
 	o.datatype = "or(uinteger,portrange)"
-	o.default = "100-200"
+	if xray_version_val <= 260601 then
+		o.datatype = "or(uinteger,portrange)"
+		o.default = "100-200"
+	else
+		o.default = "3-6"
+	end
 	o:depends("fragment", true)
 
 	o = s:option(Flag, "noise", translate("Noise"), translate("UDP noise, Under some circumstances it can bypass some UDP based protocol restrictions."))

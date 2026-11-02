@@ -5,16 +5,17 @@ UPDATE_LOG="/tmp/clash_update.txt"
 LIST_FILE="/usr/share/clashbackup/confit_list.conf"
 SUB_DIR="/usr/share/clashoo/config/sub"
 TMP_PREFIX="/tmp/clash_sub_$$"
+DEFAULT_SUB_UA='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36'
 
 subtype="$(uci -q get clashoo.config.subcri 2>/dev/null)"
 config_name_raw="$(uci -q get clashoo.config.config_name 2>/dev/null)"
 lang="$(uci -q get luci.main.lang 2>/dev/null)"
 
 log_text() {
-	if [ "$lang" = "zh_cn" ]; then
-		echo "$2" >"$REAL_LOG"
-	else
+	if [ "$lang" = "en" ]; then
 		echo "$1" >"$REAL_LOG"
+	else
+		echo "$2" >"$REAL_LOG"
 	fi
 }
 
@@ -152,21 +153,25 @@ resolve_via() {
 }
 
 curl_subscription() {
-	local url tmp hdr err ua extra_resolve http_code rc
+	local url tmp hdr err ua host ip http_code rc
 	url="$1"
 	tmp="$2"
 	hdr="$3"
 	err="$4"
 	ua="$5"
-	extra_resolve="$6"
+	host="$6"
+	ip="$7"
 
 	rm -f "$tmp" "$hdr" "$err" >/dev/null 2>&1
 
-	# shellcheck disable=SC2086
+	set --
+	if [ -n "$host" ] && [ -n "$ip" ]; then
+		set -- --resolve "$host:443:$ip" --resolve "$host:80:$ip"
+	fi
 	http_code="$(curl -sSL --connect-timeout 15 --max-time 60 \
 		--speed-time 30 --speed-limit 1 --retry 2 \
 		-H "User-Agent: ${ua}" -D "$hdr" -o "$tmp" \
-		$extra_resolve \
+		"$@" \
 		-w '%{http_code}' "$url" 2>"$err")"
 	rc=$?
 	printf '%s\n' "$http_code"
@@ -175,7 +180,7 @@ curl_subscription() {
 
 download_subscription() {
 	local url target tmp hdr err rc http_code info_line ua err_msg
-	local host ip dns extra
+	local host ip dns
 	url="$1"
 	target="$2"
 	tmp="${TMP_PREFIX}.yaml"
@@ -183,28 +188,30 @@ download_subscription() {
 	err="${TMP_PREFIX}.err"
 
 	ua="$(uci -q get clashoo.config.sub_ua 2>/dev/null)"
-	[ -n "$ua" ] || ua='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36'
+	[ -n "$ua" ] || ua="$DEFAULT_SUB_UA"
 
 	if command -v curl >/dev/null 2>&1; then
-		http_code="$(curl_subscription "$url" "$tmp" "$hdr" "$err" "$ua" "")"
+		http_code="$(curl_subscription "$url" "$tmp" "$hdr" "$err" "$ua" "" "")"
 		rc=$?
 
 		if [ "$rc" -ne 0 ] || [ "$http_code" = "000" ]; then
 			host="$(extract_host "$url")"
+			case "$host" in
+				''|[-.]*|*[!A-Za-z0-9.-]*) host='' ;;
+			esac
 			if [ -n "$host" ]; then
 				for dns in 223.5.5.5 119.29.29.29 1.1.1.1 8.8.8.8; do
 					ip="$(resolve_via "$host" "$dns")"
 					[ -n "$ip" ] || continue
 					log_update "DNS 回退：${host} -> ${ip} (@${dns})"
-					extra="--resolve ${host}:443:${ip} --resolve ${host}:80:${ip}"
-					http_code="$(curl_subscription "$url" "$tmp" "$hdr" "$err" "$ua" "$extra")"
+					http_code="$(curl_subscription "$url" "$tmp" "$hdr" "$err" "$ua" "$host" "$ip")"
 					rc=$?
 					[ "$rc" -eq 0 ] && [ "$http_code" = "200" ] && break
 				done
 			fi
 		fi
 	else
-		wget -q --tries=4 --timeout=20 \
+		wget -q --timeout=20 \
 			--user-agent="$ua" "$url" -O "$tmp" 2>"$err"
 		rc=$?
 		http_code=""
@@ -240,6 +247,7 @@ download_subscription() {
 		rm -f "$tmp" >/dev/null 2>&1
 		return 1
 	}
+	printf '%s\n' "$ua" >"${target}.ua"
 
 	return 0
 }

@@ -109,7 +109,7 @@ msgstr ""
 msgid "daed Username"
 msgstr ""
 
-msgid "Used by LuCI to update daed subscriptions through GraphQL. It does not change the daed Web login account."
+msgid "Used by LuCI to access daed (subscription updates and import). If daed is not initialized yet, this account is used to create the daed admin."
 msgstr ""
 
 msgid "daed Password"
@@ -388,6 +388,18 @@ msgstr ""
 msgid "Download"
 msgstr ""
 
+msgid "Stop daed"
+msgstr ""
+
+msgid "Stop daed now?"
+msgstr ""
+
+msgid "daed stopped"
+msgstr ""
+
+msgid "Failed to stop daed: %s"
+msgstr ""
+
 #: dae.js
 msgid "One node share link per line — ss, vmess, vless, trojan, tuic, hysteria2, socks5."
 msgstr ""
@@ -462,6 +474,9 @@ msgstr ""
 
 #: dae.js
 msgid "Subscriptions updated (dae reloaded)"
+msgstr ""
+
+msgid "Subscriptions updated and applied"
 msgstr ""
 
 #: dae.js
@@ -560,6 +575,22 @@ msgstr ""
 
 #: converter.js
 msgid "The password is not saved. Sign-in is remembered in this browser for up to 30 days."
+msgstr ""
+
+#: converter.js
+msgid "Initialize daed"
+msgstr ""
+
+#: converter.js
+msgid "Initialize and import"
+msgstr ""
+
+#: converter.js
+msgid "daed has not been initialized yet. The account below will be created as the daed admin (password needs at least 6 characters with both letters and numbers), then used to import."
+msgstr ""
+
+#: converter.js
+msgid "daed is not initialized yet. Open the daed web panel (port 2023) to create an admin account, then import again."
 msgstr ""
 
 msgid "3. Import Subscription"
@@ -781,6 +812,12 @@ msgstr ""
 msgid "Node group imported: added %d, reused %d, failed %d"
 msgstr ""
 
+msgid "Completed with warning: %s"
+msgstr ""
+
+msgid "Managed subscription no longer exists in daed"
+msgstr ""
+
 msgid "Node group import failed: %s"
 msgstr ""
 
@@ -820,6 +857,9 @@ msgstr ""
 msgid "Auto-update"
 msgstr ""
 
+msgid "Disabled"
+msgstr ""
+
 msgid "Daily"
 msgstr ""
 
@@ -844,4 +884,16 @@ msgstr ""
 msgid ""
 "%s is running. Deleting the daens netns now will break its networking until "
 "you restart it. Continue?"
+msgstr ""
+
+msgid "DNS response TTL"
+msgstr ""
+
+msgid "TTL returned to LAN DNS clients. 0 keeps dae default behavior."
+msgstr ""
+
+msgid "Log level"
+msgstr ""
+
+msgid "Debug and trace show per-connection routing details, but increase CPU usage and log volume. Enable them only while troubleshooting."
 msgstr ""

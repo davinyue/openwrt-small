@@ -5,12 +5,12 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=mihomo
-PKG_VERSION:=1.19.27
+PKG_VERSION:=1.19.33
 PKG_RELEASE:=1
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
 PKG_SOURCE_URL:=https://codeload.github.com/metacubex/mihomo/tar.gz/v$(PKG_VERSION)?
-PKG_HASH:=5d90ebe9057b2d996ba4bae237f4a277101d72a923117b4ae0dd97d0c7dc584f
+PKG_HASH:=e7c596b37ff27ec487d19b1920f73e0c97a78067ea35766530ee9659ade72711
 
 PKG_MAINTAINER:=Anya Lin <hukk1996@gmail.com>
 PKG_LICENSE:=GPL-2.0
@@ -31,6 +31,12 @@ GO_PKG_TAGS:=with_gvisor
 include $(INCLUDE_DIR)/package.mk
 include $(TOPDIR)/feeds/packages/lang/golang/golang-package.mk
 
+define Build/Prepare
+	$(Build/Prepare/Default)
+	# rm unit test
+	rm -rf $(PKG_BUILD_DIR)/rules/logic_test
+endef
+
 define Package/mihomo
   SECTION:=net
   CATEGORY:=Network
@@ -40,13 +46,6 @@ define Package/mihomo
   PROVIDES:=mihomo
   ALTERNATIVES:=\
     100:/usr/bin/mihomo:/usr/libexec/mihomo-core
-  USERID:=mihomo=7890:mihomo=7890
-endef
-
-define Build/Prepare
-	$(Build/Prepare/Default)
-	# rm unit test
-	rm -f $(PKG_BUILD_DIR)/rules/logic_test/logic_test.go
 endef
 
 define Package/mihomo/install
