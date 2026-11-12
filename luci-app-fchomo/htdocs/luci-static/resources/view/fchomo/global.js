@@ -498,7 +498,7 @@ return view.extend({
 		so.value('redir', _('Redirect TCP'));
 		if (features.has_tproxy)
 			so.value('redir_tproxy', _('Redirect TCP + TProxy UDP'));
-		if (features.has_ip_full && features.has_tun) {
+		if (features.has_tun) {
 			so.value('redir_tun', _('Redirect TCP + Tun UDP'));
 			so.value('tun', _('Tun TCP/UDP'));
 		} else
@@ -596,7 +596,7 @@ return view.extend({
 			}
 		}
 		so.renderWidget = function(section_id, option_index, cfgvalue) {
-			let node = hm.TextValue.prototype.renderWidget.call(this, section_id, option_index, cfgvalue);
+			let node = hm.TextValue.prototype.renderWidget.apply(this, arguments);
 			const cbid = this.cbid(section_id) + '._outer_sni';
 
 			node.appendChild(E('div',  { 'class': 'control-group' }, [
@@ -611,7 +611,7 @@ return view.extend({
 					click: ui.createHandlerFn(this, () => {
 						this.hm_options.params = document.getElementById(cbid).value;
 
-						return hm.handleGenKey.call(this, this.hm_options);
+						return hm.handleGenKey.call(this, section_id, this.hm_options);
 					})
 				}, [ _('Generate') ])
 			]));

@@ -79,6 +79,24 @@ return view.extend({
 		const page = E('div', { 'class': 'cbi-map honk-page' });
 		const recoveryMessage = E('p', { 'class': 'alert-message', 'role': 'status' }, '');
 		recoveryMessage.hidden = true;
+		/* 中断的维护事务只有 recover 能收尾，以前面板上根本没有入口，只能等 CLI */
+		const recoverMessage = E('p', { 'class': 'honk-status-msg', 'role': 'status' }, '');
+		const recoverBtn = E('button', { 'class': 'cbi-button cbi-button-action' }, _('Recover the interrupted operation'));
+		recoverBtn.hidden = true;
+		recoverMessage.hidden = true;
+		recoverBtn.addEventListener('click', function(ev) {
+			ev.preventDefault();
+			recoverBtn.disabled = true;
+			recoverMessage.hidden = false;
+			recoverMessage.textContent = _('Recovering…');
+			honk.recover().then(honk.ensureOk).then(function(result) {
+				recoverMessage.textContent = honk.resultMessage(result, _('Recovery completed.'));
+				window.setTimeout(function() { window.location.reload(); }, 1200);
+			}).catch(function(error) {
+				recoverMessage.textContent = honk.errorMessage(error, _('Recovery failed.'));
+				recoverBtn.disabled = false;
+			});
+		});
 		const writeControls = [];
 		let recoveryRequired = false;
 
@@ -364,7 +382,6 @@ return view.extend({
 		const restoreCfgBtn = E('button', { 'class': 'cbi-button cbi-button-negative', 'type': 'button' }, _('Restore config'));
 		/* 忘记密码用：只清管理员记录，不动订阅和规则 */
 		const resetAdminBtn = E('button', { 'class': 'cbi-button', 'type': 'button' }, _('Reset administrator'));
-		const fileInput = E('input', { 'type': 'file', 'accept': '.tar.gz,.gz,application/gzip', 'style': 'display:none' });
 		let backupBusy = false;
 		writeControls.push(exportBtn, importBtn, restoreCfgBtn, resetAdminBtn);
 
@@ -404,15 +421,8 @@ return view.extend({
 		importBtn.addEventListener('click', function(ev) {
 			ev.preventDefault();
 			if (backupBusy) return;
-			fileInput.click();
-		});
-		fileInput.addEventListener('change', function(ev) {
-			const file = ev.target.files && ev.target.files[0];
-			if (!file) return;
-			if (!confirm(_('Stop Honk before restoring. Restoring replaces Honk user data. Continue?'))) {
-				fileInput.value = '';
+			if (!confirm(_('Stop Honk before restoring. Restoring replaces Honk user data. Continue?')))
 				return;
-			}
 			setBackupBusy(true);
 			backupMessage.textContent = _('Restoring…');
 			honk.restorePrepare().then(honk.ensureOk).then(function() {
@@ -431,7 +441,6 @@ return view.extend({
 				backupMessage.textContent = honk.errorMessage(error, _('Restore failed.'));
 			}).finally(function() {
 				setBackupBusy(false);
-				fileInput.value = '';
 			});
 		});
 
@@ -475,7 +484,6 @@ return view.extend({
 		backupSection.appendChild(E('h3', { 'class': 'honk-card-title' }, _('Config backup')));
 		backupSection.appendChild(E('p', { 'class': 'honk-note' }, _('Export a backup archive, import one from your computer, or restore Honk to its default configuration.')));
 		backupSection.appendChild(E('div', { 'class': 'honk-actions' }, [ exportBtn, importBtn, restoreCfgBtn, resetAdminBtn ]));
-		backupSection.appendChild(fileInput);
 		backupSection.appendChild(backupMessage);
 
 		/* --- System check and repair card --- */
@@ -523,10 +531,15 @@ return view.extend({
 		health.appendChild(E('p', { 'class': 'honk-note' }, _('Repair replaces missing or damaged Honk system files and does not overwrite user configuration.')));
 
 		page.appendChild(E('div', { 'class': 'honk-header' }, [
-			E('h2', {}, _('Maintenance')),
-			E('p', { 'class': 'honk-header-sub' }, _('Package updates, config backup and system recovery for the Honk installation.'))
+			E('img', { 'class': 'honk-header-logo', 'src': L.resource('view/honk/logo.png'), 'alt': '' }),
+			E('div', { 'class': 'honk-header-text' }, [
+				E('h2', {}, _('Maintenance')),
+				E('p', { 'class': 'honk-header-sub' }, _('Package updates, config backup and system recovery for the Honk installation.'))
+			])
 		]));
 		page.appendChild(recoveryMessage);
+		page.appendChild(E('div', { 'class': 'honk-actions' }, [ recoverBtn ]));
+		page.appendChild(recoverMessage);
 		page.appendChild(dataSection);
 		page.appendChild(updateSection);
 		page.appendChild(backupSection);
@@ -548,6 +561,9 @@ return view.extend({
 				blockWrites();
 				recoveryMessage.textContent = honk.statusIssue(recoveryToken);
 				recoveryMessage.hidden = false;
+				// maintenance 事务可以就地恢复；update 事务要重装完整包，按钮不出现
+				if (recoveryToken === 'maintenance_recovery_required')
+					recoverBtn.hidden = false;
 			}
 		}).catch(function() {});
 		return page;

@@ -204,13 +204,12 @@ class RulesEntry {
 
 		if (rule.subrule)
 			return 'SUB-RULE,(%s),%s'.format(payload, rule.subrule);
+		else if (rule.type === 'MATCH')
+			return [rule.type, rule.detour].join(',');
 		else
-			if (rule.type === 'MATCH')
-				return [rule.type, rule.detour].join(',');
-			else
-				return [payload, rule.detour].concat(
-					rule.params ? ['no-resolve', 'src'].filter(k => rule.params[k]) : []
-				).join(',');
+			return [payload, rule.detour].concat(
+				rule.params ? ['no-resolve', 'src'].filter(k => rule.params[k]) : []
+			).join(',');
 	}
 
 	toString(format) {
@@ -404,13 +403,23 @@ const parseRulesYaml = hm.parseYaml.extend({
 				else
 					[type, factor] = logical_payload[i].split(',');
 
-				if (type === 'RULE-SET')
+				if (type === 'IN-TYPE') {
+					factor = factor.toLowerCase(); // Multi-values are not supported in Factor ++
+					//factor = factor.replace(/\/.*/, '').toLowerCase();
+				} else if (type === 'IN-NAME')
+					factor = this.calcID(hm.glossary["inbound"].field, factor);
+				else if (type === 'RULE-SET')
 					factor = this.calcID(hm.glossary["ruleset"].field, factor);
 
 				entry.setPayload(i, {type: type.toUpperCase(), factor: factor, deny: deny ? true : null});
 			}
 		else if (payload)
-			if (tp === 'RULE-SET')
+			if (tp === 'IN-TYPE') {
+				entry.setPayload(0, {factor: payload.toLowerCase()}); // Multi-values are not supported in Factor ++
+				// entry.setPayload(0, {factor: payload.replace(/\/.*/, '').toLowerCase()});
+			} else if (tp === 'IN-NAME')
+				entry.setPayload(0, {factor: this.calcID(hm.glossary["inbound"].field, payload)});
+			else if (tp === 'RULE-SET')
 				entry.setPayload(0, {factor: this.calcID(hm.glossary["ruleset"].field, payload)});
 			else
 				entry.setPayload(0, {factor: payload});
@@ -429,7 +438,7 @@ const parseRulesYaml = hm.parseYaml.extend({
 
 	parseRules(line) {
 		// parse rules
-		// https://github.com/muink/mihomo/blob/ad730ae9744971dfaa75bda20cfc2ffe07eeb59d/config/config.go#L1090-L1118
+		// https://github.com/muink/mihomo/blob/63bd52ec794b7051569b76ede2f6cdbf4c091fda/config/config.go#L1102-L1130
 		let [tp, payload, target, params] = this.ParseRulePayload(line, true);
 		if (!target)
 			return null; // error: format invalid
@@ -481,10 +490,10 @@ function flagToBool(flag) {
 
 function renderPayload(s, total, uciconfig) {
 	// common payload
-	let initPayload = function(o, n, key, uciconfig) {
-		o.load = L.bind(function(n, key, uciconfig, section_id) {
+	let initPayload = function(o, n, key) {
+		o.load = function(section_id) {
 			return new RulesEntry(uci.get(uciconfig, section_id, 'entry')).getPayload(n)[key];
-		}, o, n, key, uciconfig);
+		}
 		o.onchange = function(ev, section_id, value) {
 			let UIEl = this.section.getUIElement(section_id, 'entry');
 
@@ -498,11 +507,11 @@ function renderPayload(s, total, uciconfig) {
 		o.rmempty = false;
 		o.modalonly = true;
 	}
-	let initDynamicPayload = function(o, n, key, uciconfig) {
+	let initDynamicPayload = function(o, n, key) {
 		o.allowduplicates = true;
-		o.load = L.bind(function(n, key, uciconfig, section_id) {
+		o.load = function(section_id) {
 			return new RulesEntry(uci.get(uciconfig, section_id, 'entry')).getPayloads().slice(n).map(e => e[key] ?? '');
-		}, o, n, key, uciconfig);
+		}
 		o.validate = function(section_id, value) {
 			value = this.formvalue(section_id);
 			let UIEl = this.section.getUIElement(section_id, 'entry');
@@ -539,7 +548,7 @@ function renderPayload(s, total, uciconfig) {
 			if (n < hm.rules_logical_payload_count[key].low)
 				o.depends('type', key);
 		})
-		initPayload(o, n, 'type', uciconfig);
+		initPayload(o, n, 'type');
 		o.onchange = function(ev, section_id, value) {
 			let UIEl = this.section.getUIElement(section_id, 'entry');
 
@@ -561,13 +570,78 @@ function renderPayload(s, total, uciconfig) {
 		o.depends(Object.fromEntries([[prefix + 'type', /\bGEO(SITE|IP)\b/]]));
 		o.depends(Object.fromEntries([[prefix + 'type', /\bASN\b/]]));
 		o.depends(Object.fromEntries([[prefix + 'type', /\bPROCESS\b/]]));
-		initPayload(o, n, 'factor', uciconfig);
+		initPayload(o, n, 'factor');
+
+		o = s.option(form.Value, prefix + 'ip', _('Factor') + ` ${n+1}`);
+		o.datatype = 'cidr';
+		if (n === 0) {
+			o.depends({type: /\bCIDR6?\b/});
+			o.depends({type: /\bIP-SUFFIX\b/});
+		}
+		o.depends(Object.fromEntries([[prefix + 'type', /\bCIDR6?\b/]]));
+		o.depends(Object.fromEntries([[prefix + 'type', /\bIP-SUFFIX\b/]]));
+		initPayload(o, n, 'factor');
+
+		o = s.option(form.Value, prefix + 'port', _('Factor') + ` ${n+1}`);
+		//o.datatype = 'or(port, portrange)'; // ⬇️ migrated to validate
+		o.placeholder = '1080/2079-2080/3080';
+		if (n === 0)
+			o.depends({type: /\bPORT\b/});
+		o.depends(Object.fromEntries([[prefix + 'type', /\bPORT\b/]]));
+		initPayload(o, n, 'factor');
+		// if validate is already defined in initPayload
+		const port_old_validate = o.validate;
+		o.validate = function(section_id, value) {
+			const result = port_old_validate.apply(this, arguments);
+
+			if (result === true) {
+				this.hm_separator = '/';
+				return hm.validateCommonPort.apply(this, arguments);
+			}
+			return result;
+		}
+
+		o = s.option(form.MultiValue, prefix + 'intype', _('Factor') + ` ${n+1}`);
+		hm.inbound_type.forEach((res) => {
+			o.value.apply(o, res);
+		})
+		if (n === 0)
+			o.depends('type', 'IN-TYPE');
+		o.depends(prefix + 'type', 'IN-TYPE');
+		initPayload(o, n, 'factor');
+		o.load = L.bind(function(n, key, uciconfig, section_id) {
+			return (new RulesEntry(uci.get(uciconfig, section_id, 'entry')).getPayload(n)[key] || '')
+				.split('/');
+		}, o, n, 'factor', uciconfig)
+		o.onchange = function(ev, section_id, value) {
+			let UIEl = this.section.getUIElement(section_id, 'entry');
+
+			let n = this.option.match(/^payload(\d+)_/)[1];
+			let rule = new RulesEntry(UIEl.getValue()).setPayload(n, {factor: value.join('/')});
+
+			UIEl.node.previousSibling.innerText = rule.toString('mihomo');
+			UIEl.setValue(rule.toString('json'));
+		}
+
+		o = s.option(form.ListValue, prefix + 'inname', _('Factor') + ` ${n+1}`);
+		if (n === 0)
+			o.depends('type', 'IN-NAME');
+		o.depends(prefix + 'type', 'IN-NAME');
+		initPayload(o, n, 'factor');
+		o.load = L.bind(function(n, key, uciconfig, section_id) {
+			hm.loadLabel.call(this, [
+				['', _('-- Please choose --')],
+				...hm.loadLabelValues(this.config, 'inbound')
+			], section_id);
+
+			return new RulesEntry(uci.get(uciconfig, section_id, 'entry')).getPayload(n)[key];
+		}, o, n, 'factor', uciconfig)
 
 		o = s.option(form.ListValue, prefix + 'rematchname', _('Factor') + ` ${n+1}`);
 		if (n === 0)
 			o.depends('type', 'REMATCH-NAME');
 		o.depends(prefix + 'type', 'REMATCH-NAME');
-		initPayload(o, n, 'factor', uciconfig);
+		initPayload(o, n, 'factor');
 		o.load = L.bind(function(n, key, uciconfig, section_id) {
 			hm.loadLabel.call(this, [
 				['', _('-- Please choose --')],
@@ -582,36 +656,7 @@ function renderPayload(s, total, uciconfig) {
 		if (n === 0)
 			o.depends('type', 'UID');
 		o.depends(prefix + 'type', 'UID');
-		initPayload(o, n, 'factor', uciconfig);
-
-		o = s.option(form.Value, prefix + 'ip', _('Factor') + ` ${n+1}`);
-		o.datatype = 'cidr';
-		if (n === 0) {
-			o.depends({type: /\bCIDR6?\b/});
-			o.depends({type: /\bIP-SUFFIX\b/});
-		}
-		o.depends(Object.fromEntries([[prefix + 'type', /\bCIDR6?\b/]]));
-		o.depends(Object.fromEntries([[prefix + 'type', /\bIP-SUFFIX\b/]]));
-		initPayload(o, n, 'factor', uciconfig);
-
-		o = s.option(form.Value, prefix + 'port', _('Factor') + ` ${n+1}`);
-		//o.datatype = 'or(port, portrange)'; // ⬇️ migrated to validate
-		o.placeholder = '1080/2079-2080/3080';
-		if (n === 0)
-			o.depends({type: /\bPORT\b/});
-		o.depends(Object.fromEntries([[prefix + 'type', /\bPORT\b/]]));
-		initPayload(o, n, 'factor', uciconfig);
-		// if validate is already defined in initPayload
-		const port_old_validate = o.validate;
-		o.validate = function(section_id, value) {
-			const result = port_old_validate.apply(this, arguments);
-
-			if (result === true) {
-				this.hm_separator = '/';
-				return hm.validateCommonPort.apply(this, arguments);
-			}
-			return result;
-		}
+		initPayload(o, n, 'factor');
 
 		o = s.option(form.ListValue, prefix + 'l4', _('Factor') + ` ${n+1}`);
 		o.value('udp', _('UDP'));
@@ -619,20 +664,20 @@ function renderPayload(s, total, uciconfig) {
 		if (n === 0)
 			o.depends('type', 'NETWORK');
 		o.depends(prefix + 'type', 'NETWORK');
-		initPayload(o, n, 'factor', uciconfig);
+		initPayload(o, n, 'factor');
 
 		o = s.option(form.Value, prefix + 'dscp', _('Factor') + ` ${n+1}`);
 		o.datatype = 'and(uinteger, range(0, 63))';
 		if (n === 0)
 			o.depends('type', 'DSCP');
 		o.depends(prefix + 'type', 'DSCP');
-		initPayload(o, n, 'factor', uciconfig);
+		initPayload(o, n, 'factor');
 
 		o = s.option(form.ListValue, prefix + 'rule_set', _('Factor') + ` ${n+1}`);
 		if (n === 0)
 			o.depends('type', 'RULE-SET');
 		o.depends(prefix + 'type', 'RULE-SET');
-		initPayload(o, n, 'factor', uciconfig);
+		initPayload(o, n, 'factor');
 		o.load = L.bind(function(n, key, uciconfig, section_id) {
 			hm.loadLabel.call(this, hm.loadLabelValues(this.config, 'ruleset'), section_id);
 
@@ -642,7 +687,7 @@ function renderPayload(s, total, uciconfig) {
 		o = s.option(form.Flag, prefix + 'NOT', _('NOT') + ` ${n+1}`);
 		o.default = o.disabled;
 		o.depends(Object.fromEntries([[prefix + 'type', /.+/]]));
-		initPayload(o, n, 'deny', uciconfig);
+		initPayload(o, n, 'deny');
 		o.load = L.bind(function(n, key, uciconfig, section_id) {
 			return boolToFlag(new RulesEntry(uci.get(uciconfig, section_id, 'entry')).getPayload(n)[key] ? true : false);
 		}, o, n, 'deny', uciconfig);
@@ -676,7 +721,7 @@ function renderPayload(s, total, uciconfig) {
 		extenbox[n].forEach((type) => {
 			o.depends('type', type);
 		})
-		initDynamicPayload(o, n, 'type', uciconfig);
+		initDynamicPayload(o, n, 'type');
 		o.validate = function(section_id, value) {
 			value = this.formvalue(section_id);
 			let UIEl = this.section.getUIElement(section_id, 'entry');
@@ -699,9 +744,11 @@ function renderPayload(s, total, uciconfig) {
 		extenbox[n].forEach((type) => {
 			o.depends(Object.fromEntries([['type', type], [prefix + 'type', /.+/]]));
 		})
-		initDynamicPayload(o, n, 'factor', uciconfig);
+		initDynamicPayload(o, n, 'factor');
 		o.load = L.bind(function(n, key, uciconfig, section_id) {
 			hm.loadLabel.call(this, [
+				...hm.inbound_type.map(e => [e, _('IN-TYPE')]), // Multi-values are not supported
+				...hm.loadLabelValues(this.config, 'inbound').map(e => [e, _('IN-NAME')]),
 				...hm.loadLabelValues(this.config, 'rematch-name').map(e => [e, _('REMATCH-NAME')]),
 				[['udp', _('UDP')], _('NETWORK')],
 				[['tcp', _('TCP')], _('NETWORK')],
@@ -718,7 +765,7 @@ function renderPayload(s, total, uciconfig) {
 		extenbox[n].forEach((type) => {
 			o.depends(Object.fromEntries([['type', type], [prefix + 'type', /.+/]]));
 		})
-		initDynamicPayload(o, n, 'deny', uciconfig);
+		initDynamicPayload(o, n, 'deny');
 		o.load = L.bind(function(n, key, uciconfig, section_id) {
 			return new RulesEntry(uci.get(uciconfig, section_id, 'entry')).getPayloads().slice(n).map(e => boolToFlag(e[key] ? true : false));
 		}, o, n, 'deny', uciconfig);
@@ -1306,6 +1353,10 @@ return view.extend({
 							'- SRC-IP-SUFFIX,192.168.1.201/8,DIRECT\n' +
 							'- DST-PORT,80,DIRECT\n' +
 							'- SRC-PORT,7777,DIRECT\n' +
+							'- IN-PORT,7890/7893,GLOBAL\n' +
+							'- IN-TYPE,SOCKS/HTTP,GLOBAL\n' +
+							'- IN-NAME,ss,GLOBAL\n' +
+							'- REMATCH-NAME,rematch1,GLOBAL\n' +
 							'- PROCESS-PATH,/usr/bin/wget,auto\n' +
 							'- PROCESS-PATH-WILDCARD,/usr/*/wget,GLOBAL\n' +
 							'- PROCESS-PATH-REGEX,.*bin/wget,auto\n' +

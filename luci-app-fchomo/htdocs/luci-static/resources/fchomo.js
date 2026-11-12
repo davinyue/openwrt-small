@@ -268,7 +268,7 @@ const preset_outbound = {
 		['COMPATIBLE']
 	],
 	direct: [
-		['', _('null')],
+		['', _('none')],
 		['DIRECT'],
 		['GLOBAL']
 	],
@@ -339,10 +339,10 @@ const rules_type = [
 	{
 		label: _('Inbound'),
 		types: [
-			//['IN-PORT'],
-			//['IN-TYPE'],
+			['IN-PORT'],
+			['IN-TYPE'],
 			//['IN-USER'],
-			//['IN-NAME'],
+			['IN-NAME'],
 			['REMATCH-NAME']
 		]
 	},
@@ -710,17 +710,18 @@ const CBITextValue = form.TextValue.extend({
 const CBIGenValue = form.Value.extend({
 	__name__: 'CBI.GenValue',
 
-	renderWidget(/* ... */) {
+	renderWidget(section_id, option_index, cfgvalue) {
 		let node = form.Value.prototype.renderWidget.apply(this, arguments);
 
 		if (!this.password)
 			node.classList.add('control-group');
 
-		(node.querySelector('.control-group') || node).appendChild(E('button', {
-			class: 'cbi-button cbi-button-add',
-			title: _('Generate'),
-			click: ui.createHandlerFn(this, handleGenKey, this.hm_options || this.option)
-		}, [ _('Generate') ]));
+		if (this.section.section) // modalonly
+			(node.querySelector('.control-group') || node).appendChild(E('button', {
+				class: 'cbi-button cbi-button-add',
+				title: _('Generate'),
+				click: ui.createHandlerFn(this, handleGenKey, section_id, this.hm_options || this.option)
+			}, [ _('Generate') ]));
 
 		return node;
 	}
@@ -729,14 +730,15 @@ const CBIGenValue = form.Value.extend({
 const CBIGenText = CBITextValue.extend({
 	__name__: 'CBI.GenText',
 
-	renderWidget(/* ... */) {
+	renderWidget(section_id, option_index, cfgvalue) {
 		let node = CBITextValue.prototype.renderWidget.apply(this, arguments);
 
-		node.appendChild(E('button', {
-			class: 'cbi-button cbi-button-add',
-			title: _('Generate'),
-			click: ui.createHandlerFn(this, handleGenKey, this.hm_options || this.option)
-		}, [ _('Generate') ]));
+		if (this.section.section) // modalonly
+			(node.querySelector('.control-group') || node).appendChild(E('button', {
+				class: 'cbi-button cbi-button-add',
+				title: _('Generate'),
+				click: ui.createHandlerFn(this, handleGenKey, section_id, this.hm_options || this.option)
+			}, [ _('Generate') ]));
 
 		return node;
 	}
@@ -748,28 +750,29 @@ const CBICopyValue = form.Value.extend({
 	readonly: true,
 
 	renderWidget(section_id, option_index, cfgvalue) {
-		let node = form.Value.prototype.renderWidget.call(this, section_id, option_index, cfgvalue);
+		let node = form.Value.prototype.renderWidget.apply(this, arguments);
 
 		node.classList.add('control-group');
 
-		node.appendChild(E('button', {
-			class: 'cbi-button cbi-button-add',
-			click: ui.createHandlerFn(this, async (section_id) => {
-				try {
-					await navigator.clipboard.writeText(this.formvalue(section_id));
-					console.log('Content copied to clipboard!');
-				} catch (e) {
-					console.error('Failed to copy: ', e);
-				}
-				/* Deprecated
-				let inputEl = document.getElementById(this.cbid(section_id)).querySelector('input');
-				inputEl.select();
-				document.execCommand("copy");
-				inputEl.blur();
-				*/
-				return alert(_('Content copied to clipboard!'));
-			}, section_id)
-		}, [ _('Copy') ]));
+		if (this.section.section) // modalonly
+			node.appendChild(E('button', {
+				class: 'cbi-button cbi-button-add',
+				click: ui.createHandlerFn(this, async (section_id) => {
+					try {
+						await navigator.clipboard.writeText(this.formvalue(section_id));
+						console.log('Content copied to clipboard!');
+					} catch (e) {
+						console.error('Failed to copy: ', e);
+					}
+					/* Deprecated
+					let inputEl = document.getElementById(this.cbid(section_id)).querySelector('input');
+					inputEl.select();
+					document.execCommand("copy");
+					inputEl.blur();
+					*/
+					return alert(_('Content copied to clipboard!'));
+				}, section_id)
+			}, [ _('Copy') ]));
 
 		return node;
 	}
@@ -912,7 +915,7 @@ const CBIHandleImport = baseclass.extend(/** @lends hm.HandleImport.prototype */
 		return uci.save()
 			.then(L.bind(this.map.load, this.map))
 			.then(L.bind(this.map.reset, this.map))
-			.then(L.ui.hideModal)
+			.then(ui.hideModal)
 			.catch(() => {});
 	},
 
@@ -1324,6 +1327,7 @@ function loadLabelValues(uciconfig, sectiontype, options = {}) {
 
 	switch (sectiontype) {
 		case 'proxy_group':
+		case 'inbound':
 		case 'node':
 		case 'provider':
 			uci.sections(uciconfig, sectiontype, (res) => {
@@ -1452,7 +1456,7 @@ function renderHy2Realm(s, uciconfig) {
 	o.depends('hysteria2_realm', '1');
 	o.modalonly = true;
 
-	// @ 下面支持填写针对server-url的TLS配置(sni, skip-cert-verify, name-cert-verify, fingerprint, certificate, private-key, alpn)
+	// 下面支持填写针对server-url的TLS配置(sni, skip-cert-verify, name-cert-verify, fingerprint, certificate, private-key, alpn)
 
 	o = s.taboption('field_hysteria2_realm', form.Value, 'hysteria2_realm_sni', _('TLS SNI'),
 		_('Hostname that the client attempts to connect to at the start of the TLS handshake process.'));
@@ -1548,8 +1552,7 @@ function renderResLink(section_id) {
 	return El;
 }
 
-function handleGenKey(option) {
-	const section_id = this.section.section;
+function handleGenKey(section_id, option) {
 	const type = this.section.getOption('type')?.formvalue(section_id);
 	const widget = L.bind(function(option) {
 		return this.map.findElement('id', 'widget.' + this.cbid(section_id).replace(/\.[^\.]+$/, '.') + option);
@@ -1809,9 +1812,11 @@ function validateHexstr(length, section_id, value) {
 
 function validateBase64Key(length, section_id, value) {
 	/* Thanks to luci-proto-wireguard */
-	if (value)
+	if (value) {
 		if (value.length !== length || !value.match(/^(?:[A-Za-z0-9+\/]{4})*(?:[A-Za-z0-9+\/]{2}==|[A-Za-z0-9+\/]{3}=)?$/) || value[length-1] !== '=')
 			return _('Expecting: %s').format(_('valid base64 key with %d characters').format(length));
+	} else if (this.rmempty === false || (this.optional ?? true) !== false)
+		return _('Expecting: %s').format(_('non-empty value'));
 
 	return true;
 }
@@ -2113,25 +2118,25 @@ return baseclass.extend({
 	handleGenKey,
 	handleReload,
 	handleRemoveIdles,
-	textvalue2Value,
+	textvalue2Value,  // this
 	// validate
 	validateAuth,
 	validateAuthUsername,
 	validateAuthPassword,
-	validateCommonPort,
+	validateCommonPort,  // this
 	validateBytesize,
 	validateTimeDuration,
 	validateJson,
 	validateUUID,
 	validateUrl,
 	validateHexstr,
-	validateBase64Key,
+	validateBase64Key,  // this
 	validateSha256Key,
-	validateMTLSClientAuth,
-	validatePresetIDs,
-	validateShadowsocksPassword,
+	validateMTLSClientAuth,  // this
+	validatePresetIDs,  // this
+	validateShadowsocksPassword,  // this
 	validateSudokuCustomTable,
-	validateUniqueValue,
+	validateUniqueValue,  // this
 	// file operations
 	lsDir,
 	readFile,

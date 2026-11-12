@@ -5,7 +5,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=honk
-PKG_VERSION:=2026.11.01
+PKG_VERSION:=2026.11.09.1
 PKG_RELEASE:=1
 
 # Pinned honk-core revision (upstream daeuniverse/honk main), cross-compiled by
@@ -14,10 +14,10 @@ PKG_RELEASE:=1
 # assets behind CORE_COMMIT, so a plain feed build downloads and verifies them
 # without any generated file. A staged run may still override them through
 # honk/generated-stage.mk, which is generated and never committed.
-CORE_COMMIT:=54b2e1cfbe1e7f8a93dba3a0f64fabf2a9f88e38
+CORE_COMMIT:=64848881b7304e250e7a25422f4f1d86a5975eca
 
 # Immutable source asset tag holding this pin's core archives.
-HONK_SOURCE_TAG?=source-41281523460
+HONK_SOURCE_TAG?=source-42975766273
 HONK_SOURCE_URL?=https://github.com/kenzok8/openwrt-honk/releases/download/$(HONK_SOURCE_TAG)
 
 -include $(CURDIR)/generated-stage.mk
@@ -25,9 +25,9 @@ HONK_SOURCE_URL?=https://github.com/kenzok8/openwrt-honk/releases/download/$(HON
 HONK_ASSET_X86_64?=honk-core-$(CORE_COMMIT)-x86_64.tar.gz
 HONK_ASSET_AARCH64?=honk-core-$(CORE_COMMIT)-aarch64.tar.gz
 HONK_ASSET_ARMV7?=honk-core-$(CORE_COMMIT)-armv7.tar.gz
-HONK_HASH_X86_64?=a5e46463505cc6ca15d704d77b57eba37b3ffe5d71498af928f052f612724deb
-HONK_HASH_AARCH64?=98084529a1186ecc60d0b4882a0d419cc127b7d7c86ad5952ae0eda236709274
-HONK_HASH_ARMV7?=e1f2a1dff427220301e4a343202e2c2c2b5efd8e996423ca981c6e0145540d60
+HONK_HASH_X86_64?=d8b779a60fbe4965d323bcab187924f5c28745509318bf54c853cbd71d9e540a
+HONK_HASH_AARCH64?=27df7fbab0e3fb15cb3171d1f74d387f815ecc7c53f96256af11dcc6618da047
+HONK_HASH_ARMV7?=44cbb9a75054c14b97f98849a70aa32fd87b9d4ef7116c6e790315d0adee7766
 
 # ARCH_PACKAGES is the package arch (e.g. arm_cortex-a7_neon-vfpv4);
 # ARCH is the CPU arch (x86_64/aarch64/arm) and coincides for 64-bit.
@@ -54,6 +54,10 @@ PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_NAME)-$(PKG_VERSION)
 
 include $(INCLUDE_DIR)/package.mk
 
+ifeq ($(HONK_CORE_LANE),linux66)
+  RSTRIP:=:
+endif
+
 define Package/honk
   SECTION:=net
   CATEGORY:=Network
@@ -61,7 +65,9 @@ define Package/honk
   TITLE:=Honk transparent proxy core
   URL:=https://github.com/daeuniverse/honk
   # 不直接依赖 libubox：包名带 ABI 日期戳，会锁死固件；脚本只用 jshn 提供的 jshn.sh。
-  DEPENDS:=@(x86_64||aarch64||arm) +ca-bundle +ip-full +ubus +kmod-sched-core +kmod-sched-bpf +kmod-veth +kmod-nft-queue +jsonfilter +jshn +sqlite3-cli +usign +coreutils-stat +v2ray-geoip +v2ray-geosite +@KERNEL_DEBUG_INFO_BTF
+  # 不绑 @KERNEL_DEBUG_INFO_BTF：固件没编 BTF 时还有 vmlinux-btf 包这条活路，
+  # 绑上去会让官方 OpenWrt 直接装不了，启动时由控制脚本给出明确报错。
+  DEPENDS:=@(x86_64||aarch64||arm) +ca-bundle +ip-full +ubus +kmod-sched-core +kmod-sched-bpf +kmod-veth +kmod-nft-queue +jsonfilter +jshn +sqlite3-cli +usign +coreutils-stat +v2ray-geoip +v2ray-geosite
 endef
 
 define Package/honk/description
@@ -87,6 +93,10 @@ endef
 define Package/honk/install
 	$(INSTALL_DIR) $(1)/usr/bin
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/honk-core $(1)/usr/bin/honk-core
+	if [ -f $(PKG_BUILD_DIR)/core-capabilities.json ]; then \
+		$(INSTALL_DIR) $(1)/usr/share/honk; \
+		$(INSTALL_DATA) $(PKG_BUILD_DIR)/core-capabilities.json $(1)/usr/share/honk/core-capabilities.json; \
+	fi
 
 	$(INSTALL_DIR) $(1)/usr/share/licenses/honk
 	$(INSTALL_DATA) $(PKG_BUILD_DIR)/LICENSE $(1)/usr/share/licenses/honk/LICENSE

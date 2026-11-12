@@ -517,13 +517,23 @@ return view.extend({
 		so.value('3', _('v3'));
 		so.value('4', _('v4'));
 		so.value('5', _('v5'));
+		so.value('6', _('v6'));
 		so.default = '4';
 		so.depends('type', 'snell');
 		so.modalonly = true;
 
 		so = ss.taboption('field_general', form.Flag, 'snell_reuse', _('Connection reuse'));
 		so.default = so.disabled;
-		so.depends({type: 'snell', snell_version: /^(4|5)$/});
+		so.depends({type: 'snell', snell_version: /^(4|5|6)$/});
+		so.modalonly = true;
+
+		so = ss.taboption('field_general', form.ListValue, 'snell_mode', _('Traffic mode'),
+			_('Must be consistent with the server.'));
+		so.value('', _('Keep default'));
+		so.value('default', _('Default'));
+		so.value('unshaped', _('No obfuscation'));
+		so.value('unsafe-raw', _('No encryption No obfuscation'));
+		so.depends({type: 'snell', snell_version: /^(6)$/});
 		so.modalonly = true;
 
 		/* VMess / VLESS fields */
@@ -1071,16 +1081,19 @@ return view.extend({
 		so.depends('type', 'easytier');
 		so.modalonly = true;
 
-		so = ss.taboption('field_general', form.Flag, 'easytier_secure_mode', _('Secure Mode'));
+		so = ss.taboption('field_general', form.Flag, 'easytier_secure_mode', _('Secure mode'));
 		so.default = so.disabled;
 		so.validate = function(section_id, value) {
 			const secure_mode = this.getUIElement(section_id).node.querySelector('input');
 			const peers = this.section.getOption('easytier_peers').formvalue(section_id);
-			const local_private_key = this.section.getOption('easytier_local_private_key').formvalue(section_id);
-			const local_public_key = this.section.getOption('easytier_local_public_key').formvalue(section_id);
 
 			// Force enabled
-			if ((local_private_key && local_public_key) || peers.filter(e => new URL(e).searchParams.get('peer-public-key')).length > 0) {
+			if (peers.filter(e => {
+					try {
+						return new URL(e).searchParams.get('peer-public-key');
+					} catch {}
+				}).length > 0
+			) {
 				secure_mode.checked = true;
 				secure_mode.disabled = true;
 			} else
@@ -1104,12 +1117,13 @@ return view.extend({
 		}
 		so.password = true;
 		so.validate = L.bind(hm.validateBase64Key, so, 44);
-		so.depends('type', 'easytier');
+		so.rmempty = false;
+		so.depends('easytier_secure_mode', '1');
 		so.modalonly = true;
 
 		so = ss.taboption('field_general', hm.CopyValue, 'easytier_local_public_key', _('Client public key'),
 			_('Base64 encoded X25519 public key.'));
-		so.depends('type', 'easytier');
+		so.depends('easytier_secure_mode', '1');
 		so.modalonly = true;
 
 		so = ss.taboption('field_general', form.DynamicList, 'easytier_exit_nodes', _('Exit nodes'),
@@ -1250,7 +1264,7 @@ return view.extend({
 		so = ss.taboption('field_general', form.Flag, 'udp', _('Force UDP'));
 		so.default = so.disabled;
 		so.depends({type: /^(rematch|direct|socks5|ss|mieru|vmess|vless|trojan|anytls|trusttunnel|zerotier|wireguard|tailscale|masque|easytier)$/});
-		so.depends({type: 'snell', snell_version: /^(3|4|5)$/});
+		so.depends({type: 'snell', snell_version: /^(3|4|5|6)$/});
 		so.modalonly = true;
 
 		so = ss.taboption('field_general', form.Flag, 'uot', _('UoT'),
@@ -1283,11 +1297,20 @@ return view.extend({
 		//so.value('kcptun', _('kcptun'));
 		so.validate = function(section_id, value) {
 			const type = this.section.getOption('type').formvalue(section_id);
+			const snell_version = this.section.getOption('snell_version').formvalue(section_id);
 
 			if (value) {
-				if (type === 'snell' && !['obfs', 'shadow-tls', 'restls', 'jls'].includes(value)) {
-					return _('Expecting: Only support %s.').format(_('obfs-simple') +
-						' / ' + _('ShadowTLS') +
+				if (type === 'snell' && !['shadow-tls', 'restls', 'jls'].includes(value)) {
+					let obfs_simple_supported = true;
+					if (Number(snell_version) < 6) {
+						if (value === 'obfs')
+							return true;
+					} else
+						obfs_simple_supported = false;
+
+					return _('Expecting: Only support %s.').format(
+						(obfs_simple_supported ? _('obfs-simple') + ' / ' : '') +
+						_('ShadowTLS') +
 						' / ' + _('Restls') +
 						' / ' + _('JLS'));
 				}
@@ -1359,6 +1382,19 @@ return view.extend({
 		so.depends('type', 'vless');
 		so.modalonly = true;
 
+		so = ss.taboption('field_vless_encryption', form.Value, 'vless_encryption_encryption', _('encryption'));
+		so.renderWidget = function(/* ... */) {
+			let node = form.Value.prototype.renderWidget.apply(this, arguments);
+
+			node.firstChild.style.width = '30em';
+
+			return node;
+		}
+		so.rmempty = false;
+		so.depends('vless_encryption', '1');
+		so.modalonly = true;
+
+		// common part
 		const initVlessEncryptionClientOption = function(o, key) {
 			o.load = function(section_id) {
 				const value = uci.get(data[0], section_id, 'vless_encryption_encryption');
@@ -1375,19 +1411,9 @@ return view.extend({
 				UIEl.setValue(newpayload.toString());
 			}
 			o.write = function() {};
+			o.depends('vless_encryption', '1');
+			o.modalonly = true;
 		}
-
-		so = ss.taboption('field_vless_encryption', form.Value, 'vless_encryption_encryption', _('encryption'));
-		so.renderWidget = function(/* ... */) {
-			let node = form.Value.prototype.renderWidget.apply(this, arguments);
-
-			node.firstChild.style.width = '30em';
-
-			return node;
-		}
-		so.rmempty = false;
-		so.depends('vless_encryption', '1');
-		so.modalonly = true;
 
 		so = ss.taboption('field_vless_encryption', form.ListValue, 'vless_encryption_rtt', _('Client') +' '+ _('RTT'));
 		so.default = hm.vless_encryption.rtts[0][0];
@@ -1396,8 +1422,6 @@ return view.extend({
 		})
 		initVlessEncryptionClientOption(so, 'rtt');
 		so.rmempty = false;
-		so.depends('vless_encryption', '1');
-		so.modalonly = true;
 
 		so = ss.taboption('field_vless_encryption', hm.less_25_12 ? hm.DynamicList : form.DynamicList, 'vless_encryption_paddings', _('Paddings'), // @less_25_12
 			_('The server and client can set different padding parameters.') + '</br>' +
@@ -1417,8 +1441,6 @@ return view.extend({
 			return true;
 		}
 		so.allowduplicates = true;
-		so.depends('vless_encryption', '1');
-		so.modalonly = true;
 
 		// @ 下面支持填写针对download-settings的上下行分离配置
 
@@ -1653,7 +1675,7 @@ return view.extend({
 
 		const zerotier_listen_port = {
 			load(section_id) {
-				const listen_port = this.map.data.get(this.section.config, section_id, 'zerotier_listen_port') || '';
+				const listen_port = uci.get(this.section.config, section_id, 'zerotier_listen_port') || '';
 				const value = [
 					this.map.data.get(this.section.config, section_id, 'zerotier_primary_port'),
 					this.map.data.get(this.section.config, section_id, 'zerotier_secondary_port')
@@ -1661,13 +1683,12 @@ return view.extend({
 
 				if (listen_port != value) {
 					uci.set(this.section.config, section_id, 'zerotier_listen_port', value);
-					return uci.save()
-						.then(L.bind(this.map.load, this.map))
+					uci.save()
 						.then(L.bind(this.map.reset, this.map))
 						.catch(() => {});
 				}
 
-				return form.Value.prototype.load.apply(this, arguments);
+				return this.super('load', section_id);
 			},
 
 			write(section_id, formvalue) {
@@ -1678,7 +1699,7 @@ return view.extend({
 
 				uci.set(this.section.config, section_id, 'zerotier_listen_port', value);
 
-				return form.Value.prototype[formvalue ? 'write' : 'remove'].apply(this, arguments);
+				return this.super(formvalue ? 'write' : 'remove', ...arguments);
 			}
 		};
 
@@ -1705,19 +1726,18 @@ return view.extend({
 
 		const easytier_listen_port = {
 			load(section_id) {
-				const listen_port = this.map.data.get(this.section.config, section_id, 'easytier_listen_port') || '';
+				const listen_port = uci.get(this.section.config, section_id, 'easytier_listen_port') || '';
 				const value = [...new Set(this.map.data.get(this.section.config, section_id, 'endpoint_listeners')?.map(uri => new URL(uri).port) || [])]
 					.filter(Boolean).join(',');
 
 				if (listen_port != value) {
 					uci.set(this.section.config, section_id, 'easytier_listen_port', value);
-					return uci.save()
-						.then(L.bind(this.map.load, this.map))
+					uci.save()
 						.then(L.bind(this.map.reset, this.map))
 						.catch(() => {});
 				}
 
-				return form.Value.prototype.load.apply(this, arguments);
+				return this.super('load', section_id);
 			},
 
 			write(section_id, formvalue) {
@@ -1726,7 +1746,7 @@ return view.extend({
 
 				uci.set(this.section.config, section_id, 'easytier_listen_port', value);
 
-				return form.Value.prototype[formvalue ? 'write' : 'remove'].apply(this, arguments);
+				return this.super(formvalue ? 'write' : 'remove', ...arguments);
 			}
 		};
 
@@ -2438,7 +2458,7 @@ return view.extend({
 			}
 		}
 		so.renderWidget = function(section_id, option_index, cfgvalue) {
-			let node = form.Value.prototype.renderWidget.call(this, section_id, option_index, cfgvalue);
+			let node = form.Value.prototype.renderWidget.apply(this, arguments);
 			const cbid = this.cbid(section_id) + '._keytype_select';
 			const selected = this.hm_options.type;
 
@@ -2466,7 +2486,7 @@ return view.extend({
 						else
 							this.hm_options.params = '';
 
-						return hm.handleGenKey.call(this, this.hm_options);
+						return hm.handleGenKey.call(this, section_id, this.hm_options);
 					})
 				}, [ _('Generate') ])
 			]));
