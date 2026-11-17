@@ -627,9 +627,9 @@ function renderListeners(s, uciconfig, isClient) {
 			_('Name of the Sub rule used for inbound matching.'));
 		o.value.apply(o, ['', _('none')]);
 		o.load = function(section_id) {
-			return hm.loadLabel.call(this, [
+			return hm.loadChoices.call(this, [
 				['', _('none')],
-				...hm.loadLabelValues(this.config, 'subrule-group')
+				...hm.loadChoicesGetMap(this.config, 'subrule-group')
 			], section_id);
 		}
 		o.modalonly = false;
@@ -642,9 +642,9 @@ function renderListeners(s, uciconfig, isClient) {
 			o.value.apply(o, res);
 		})
 		o.load = function(section_id) {
-			return hm.loadLabel.call(this, [
+			return hm.loadChoices.call(this, [
 				...hm.preset_outbound.direct,
-				...hm.loadLabelValues(this.config, 'proxy_group')
+				...hm.loadChoicesGetMap(this.config, 'proxy_group')
 			], section_id);
 		}
 		o.modalonly = false;
@@ -789,9 +789,9 @@ function renderListeners(s, uciconfig, isClient) {
 			o.value.apply(o, res);
 		})
 		o.load = function(section_id) {
-			return hm.loadLabel.call(this, [
+			return hm.loadChoices.call(this, [
 				...hm.preset_outbound.direct,
-				...hm.loadLabelValues(this.config, 'proxy_group')
+				...hm.loadChoicesGetMap(this.config, 'proxy_group')
 			], section_id);
 		}
 		o.depends('tls_reality', '1');
@@ -828,14 +828,15 @@ function renderListeners(s, uciconfig, isClient) {
 
 	// common part
 	const initVlessEncryptionOption = function(o, key,
-		load_callback = (k, inst) => inst[k]
+		load_callback = (k, inst) => inst[k],
+		onchange_callback = (k, v, inst) => inst.setKey(k, v)
 	) {
 		o.load = function(section_id) {
 			return load_callback(key, new VlessEncryption(uci.get(uciconfig, section_id, 'vless_encryption_hmpayload')));
 		}
 		o.onchange = function(ev, section_id, value) {
 			let UIEl = this.section.getUIElement(section_id, 'vless_encryption_hmpayload');
-			let newpayload = new VlessEncryption(UIEl.getValue()).setKey(key, value);
+			let newpayload = onchange_callback(key, value, new VlessEncryption(UIEl.getValue()));
 
 			UIEl.setValue(newpayload.toString());
 
@@ -1015,9 +1016,9 @@ function renderListeners(s, uciconfig, isClient) {
 			o.value.apply(o, res);
 		})
 		o.load = function(section_id) {
-			return hm.loadLabel.call(this, [
+			return hm.loadChoices.call(this, [
 				...hm.preset_outbound.direct,
-				...hm.loadLabelValues(this.config, 'proxy_group')
+				...hm.loadChoicesGetMap(this.config, 'proxy_group')
 			], section_id);
 		}
 		o.depends('hysteria2_realm', '1');
